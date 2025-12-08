@@ -4,185 +4,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MeshCards - AI Flashcard Generator</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <title>MeshCards Studio</title>
+    <link rel="stylesheet" href="style.css?v=6">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- AOS Animation Library -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 
 <body>
-    <!-- Animated Background -->
-    <div class="bg-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
-    </div>
-
-    <!-- Navbar -->
-    <nav class="navbar">
-        <div class="nav-container">
+    <div class="app-container">
+        <!-- Sidebar / Header -->
+        <header class="app-header">
             <div class="logo">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#6366f1" />
-                            <stop offset="50%" stop-color="#8b5cf6" />
-                            <stop offset="100%" stop-color="#0ea5e9" />
-                        </linearGradient>
-                    </defs>
-                    <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
-                    <path d="M10 10H22V22H10V10Z" fill="white" fill-opacity="0.9" />
-                </svg>
+                <div class="logo-icon">
+                    <i class="ph-fill ph-cards"></i>
+                </div>
                 <span>MeshCards</span>
             </div>
-            <div class="nav-links">
-                <a href="https://github.com/pranavsinghpatil/MeshCards" target="_blank" class="github-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                    </svg>
-                    Star on GitHub
+            <div class="header-actions">
+                <a href="https://github.com/pranavsinghpatil/MeshCards" target="_blank" class="icon-btn"
+                    title="View on GitHub">
+                    <i class="ph-fill ph-github-logo"></i>
                 </a>
             </div>
-        </div>
-    </nav>
+        </header>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-content" data-aos="fade-right">
-            <h1>Turn Chaos into <br><span class="gradient-text">Knowledge</span></h1>
-            <p class="hero-subtitle">
-                Instantly convert your messy notes, PDFs, and articles into structured Anki flashcards using advanced
-                AI.
-            </p>
-            <div class="hero-stats">
-                <div class="stat">
-                    <span class="stat-value">10x</span>
-                    <span class="stat-label">Faster Study</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-value">AI</span>
-                    <span class="stat-label">Powered Images</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-value">100%</span>
-                    <span class="stat-label">Free & Open</span>
-                </div>
-            </div>
-        </div>
+        <main class="studio-grid">
+            <form id="generateForm" class="studio-form">
 
-        <div class="hero-form" data-aos="fade-left">
-            <div class="glass-card">
-                <form id="generateForm">
-                    <div class="form-header">
-                        <h2>Create Deck</h2>
-                        <div class="tabs">
-                            <button type="button" class="tab-btn active" data-tab="file">Upload</button>
-                            <button type="button" class="tab-btn" data-tab="text">Paste</button>
-                        </div>
+                <!-- Left Column: Source -->
+                <section class="panel source-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph-duotone ph-file-text"></i> Source Material</h2>
+                        <p>Upload documents or paste text to generate cards from.</p>
                     </div>
 
-                    <div id="file-section" class="input-section active">
-                        <div class="file-upload" id="dropZone">
-                            <input type="file" id="file" name="file" accept=".txt,.pdf,.md">
-                            <div class="upload-icon">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                                </svg>
-                            </div>
-                            <p>Drop PDF or Text file<br><span class="sub-text">Max 10MB</span></p>
-                        </div>
+                    <div class="tabs">
+                        <button type="button" class="tab-btn active" data-tab="file">
+                            <i class="ph ph-upload-simple"></i> Upload File
+                        </button>
+                        <button type="button" class="tab-btn" data-tab="text">
+                            <i class="ph ph-text-aa"></i> Paste Text
+                        </button>
                     </div>
 
-                    <div id="text-section" class="input-section">
-                        <textarea id="text" name="text" placeholder="Paste your notes here..."></textarea>
-                    </div>
-
-                    <div class="settings-grid">
-                        <div class="form-group">
-                            <label>Deck Name</label>
-                            <input type="text" id="deck_name" name="deck_name" value="MeshCards Deck">
-                        </div>
-                        <div class="form-group">
-                            <label>Cards</label>
-                            <input type="number" id="max_cards" name="max_cards" value="20" min="5" max="50">
-                        </div>
-                    </div>
-
-                    <div class="advanced-settings">
-                        <details>
-                            <summary>Advanced Options</summary>
-                            <div class="grid-2">
-                                <div class="form-group">
-                                    <label>Model</label>
-                                    <select id="provider" name="provider">
-                                        <option value="gemini" selected>Gemini Pro</option>
-                                        <option value="openai">GPT-4o</option>
-                                        <option value="anthropic">Claude 3.5</option>
-                                        <option value="ollama">Ollama</option>
-                                    </select>
+                    <div id="file-section" class="input-area active">
+                        <div class="drop-zone" id="dropZone">
+                            <input type="file" id="file" name="file" accept=".pdf,.txt,.md">
+                            <div class="drop-content">
+                                <div class="icon-circle">
+                                    <i class="ph-duotone ph-cloud-arrow-up"></i>
                                 </div>
-                                <div class="form-group">
-                                    <label>Style</label>
-                                    <select id="style" name="style">
-                                        <option value="Mixed" selected>Mixed</option>
-                                        <option value="Conceptual">Conceptual</option>
-                                        <option value="Code">Code</option>
-                                    </select>
+                                <h3>Drop your file here</h3>
+                                <p>Supports PDF, TXT, MD (Max 10MB)</p>
+                                <button type="button" class="btn-secondary">Browse Files</button>
+                            </div>
+                            <div class="file-preview hidden" id="fileInfo">
+                                <div class="file-icon">
+                                    <i class="ph-fill ph-file-pdf"></i>
+                                </div>
+                                <div class="file-meta">
+                                    <span class="file-name">lecture_notes.pdf</span>
+                                    <span class="file-size">2.4 MB</span>
+                                </div>
+                                <button type="button" class="btn-icon-sm" id="removeFileBtn">
+                                    <i class="ph-bold ph-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="text-section" class="input-area">
+                        <div class="text-editor">
+                            <div class="editor-toolbar">
+                                <span class="label">Content</span>
+                                <div class="tools">
+                                    <button type="button" id="pasteBtn" title="Paste"><i
+                                            class="ph ph-clipboard"></i></button>
+                                    <button type="button" id="clearTextBtn" title="Clear"><i
+                                            class="ph ph-trash"></i></button>
                                 </div>
                             </div>
-                            <div class="form-group checkbox-group">
-                                <input type="checkbox" id="images" name="images">
-                                <label for="images">Generate AI Images</label>
+                            <textarea id="text" name="text"
+                                placeholder="Paste your notes, article, or documentation here..."></textarea>
+                            <div class="editor-footer">
+                                <span class="char-count">0 characters</span>
                             </div>
-                        </details>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right Column: Configuration -->
+                <section class="panel config-panel">
+                    <div class="panel-header">
+                        <h2><i class="ph-duotone ph-sliders-horizontal"></i> Configuration</h2>
+                        <p>Customize how your flashcards are generated.</p>
                     </div>
 
-                    <button type="submit" id="submitBtn">
-                        <span class="btn-text">Generate Flashcards</span>
-                        <div class="loader hidden"></div>
-                    </button>
-                    <div id="statusMessage" class="hidden"></div>
-                </form>
-            </div>
-        </div>
-    </section>
+                    <div class="config-group">
+                        <label class="group-label">Deck Details</label>
+                        <div class="input-row">
+                            <div class="input-field">
+                                <label for="deck_name">Deck Name</label>
+                                <input type="text" id="deck_name" name="deck_name" value="MeshCards Deck"
+                                    placeholder="e.g. Biology 101">
+                            </div>
+                            <div class="input-field">
+                                <label for="max_cards">Card Count: <span id="cardCountVal">20</span></label>
+                                <input type="range" id="max_cards" name="max_cards" min="5" max="50" value="20"
+                                    step="5">
+                            </div>
+                        </div>
+                    </div>
 
-    <!-- Features Section -->
-    <section class="features">
-        <div class="feature-card" data-aos="fade-up" data-aos-delay="0">
-            <div class="feature-icon">🧠</div>
-            <h3>Smart Extraction</h3>
-            <p>Our AI identifies key concepts, definitions, and relationships automatically.</p>
-        </div>
-        <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
-            <div class="feature-icon">🎨</div>
-            <h3>Visual Learning</h3>
-            <p>Automatically generates context-aware illustrations for your flashcards.</p>
-        </div>
-        <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
-            <div class="feature-icon">⚡</div>
-            <h3>Instant Export</h3>
-            <p>Get a ready-to-use <code>.apkg</code> file compatible with Anki Desktop & Mobile.</p>
-        </div>
-    </section>
+                    <div class="config-group">
+                        <label class="group-label">AI Model</label>
+                        <div class="card-selector">
+                            <label class="selection-card">
+                                <input type="radio" name="provider" value="gemini" checked>
+                                <div class="card-content">
+                                    <i class="ph-fill ph-sparkle text-gemini"></i>
+                                    <span class="card-title">Gemini</span>
+                                </div>
+                            </label>
+                            <label class="selection-card">
+                                <input type="radio" name="provider" value="openai">
+                                <div class="card-content">
+                                    <i class="ph-fill ph-brain text-openai"></i>
+                                    <span class="card-title">GPT-4o</span>
+                                </div>
+                            </label>
+                            <label class="selection-card">
+                                <input type="radio" name="provider" value="ollama">
+                                <div class="card-content">
+                                    <i class="ph-fill ph-laptop text-ollama"></i>
+                                    <span class="card-title">Ollama</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
 
-    <footer>
-        <p>© 2025 MeshCards. Built for Liquid Metal Hackathon.</p>
-    </footer>
+                    <div class="config-group">
+                        <label class="group-label">Focus Areas</label>
+                        <div class="chips-selector">
+                            <label class="chip">
+                                <input type="checkbox" name="focus_areas" value="Definitions" checked>
+                                <span>Definitions</span>
+                            </label>
+                            <label class="chip">
+                                <input type="checkbox" name="focus_areas" value="Key Concepts" checked>
+                                <span>Concepts</span>
+                            </label>
+                            <label class="chip">
+                                <input type="checkbox" name="focus_areas" value="Dates & Facts">
+                                <span>Dates & Facts</span>
+                            </label>
+                            <label class="chip">
+                                <input type="checkbox" name="focus_areas" value="Processes">
+                                <span>Processes</span>
+                            </label>
+                        </div>
+                    </div>
 
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script>
-        AOS.init({
-            duration: 800,
-            once: true
-        });
-    </script>
-    <script src="app.js?v=3"></script>
+                    <div class="config-group">
+                        <label class="group-label">Card Style</label>
+                        <div class="style-selector">
+                            <label class="style-option">
+                                <input type="radio" name="style" value="Mixed" checked>
+                                <div class="style-preview mixed"></div>
+                                <span>Mixed</span>
+                            </label>
+                            <label class="style-option">
+                                <input type="radio" name="style" value="Conceptual">
+                                <div class="style-preview conceptual"></div>
+                                <span>Conceptual</span>
+                            </label>
+                            <label class="style-option">
+                                <input type="radio" name="style" value="Code">
+                                <div class="style-preview code"></div>
+                                <span>Code</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="config-group toggle-group">
+                        <div class="toggle-label-wrapper">
+                            <span class="label-main">AI Illustrations</span>
+                            <span class="label-sub">Generate visual aids for cards</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="images" name="images">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="action-area">
+                        <button type="submit" id="submitBtn" class="btn-primary">
+                            <i class="ph-bold ph-lightning"></i>
+                            <span>Generate Flashcards</span>
+                        </button>
+                        <div id="statusMessage" class="status-msg hidden"></div>
+                    </div>
+                </section>
+            </form>
+        </main>
+    </div>
+    <script src="app.js?v=6"></script>
 </body>
 
 </html>

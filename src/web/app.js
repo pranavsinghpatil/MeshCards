@@ -1,110 +1,151 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Elements
+    // --- Elements ---
     const form = document.getElementById('generateForm');
     const submitBtn = document.getElementById('submitBtn');
-    const btnText = submitBtn.querySelector('.btn-text');
-    const loader = submitBtn.querySelector('.loader');
     const statusMessage = document.getElementById('statusMessage');
-    const fileInput = document.getElementById('file');
-    const dropZone = document.getElementById('dropZone');
-    const tabs = document.querySelectorAll('.tab-btn');
-    const inputSections = document.querySelectorAll('.input-section');
 
-    // State
+    // Tabs
+    const tabs = document.querySelectorAll('.tab-btn');
+    const inputAreas = document.querySelectorAll('.input-area');
     let activeTab = 'file';
+
+    // File Upload
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('file');
+    const fileInfo = document.getElementById('fileInfo');
+    const dropContent = document.querySelector('.drop-content');
+    const removeFileBtn = document.getElementById('removeFileBtn');
+    const fileNameDisplay = document.querySelector('.file-name');
+    const fileSizeDisplay = document.querySelector('.file-size');
+
+    // Text Editor
+    const textArea = document.getElementById('text');
+    const charCount = document.querySelector('.char-count');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const clearTextBtn = document.getElementById('clearTextBtn');
+
+    // Sliders
+    const cardCountInput = document.getElementById('max_cards');
+    const cardCountVal = document.getElementById('cardCountVal');
 
     // --- Tab Logic ---
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            // Remove active class from all tabs
             tabs.forEach(t => t.classList.remove('active'));
-            // Add active class to clicked tab
             tab.classList.add('active');
-
-            // Switch content section
             activeTab = tab.dataset.tab;
-            inputSections.forEach(section => {
-                if (section.id === `${activeTab}-section`) {
-                    section.classList.add('active');
+
+            inputAreas.forEach(area => {
+                if (area.id === `${activeTab}-section`) {
+                    area.classList.add('active');
                 } else {
-                    section.classList.remove('active');
+                    area.classList.remove('active');
                 }
             });
-
-            // Clear status when switching
-            hideStatus();
         });
     });
 
-    // --- Drag & Drop Logic ---
+    // --- File Logic ---
+    dropZone.addEventListener('click', (e) => {
+        if (e.target !== removeFileBtn && !fileInfo.contains(e.target)) {
+            fileInput.click();
+        }
+    });
+
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
     });
 
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    dropZone.addEventListener('dragover', () => {
-        dropZone.style.borderColor = 'var(--primary)';
-        dropZone.style.background = 'rgba(99, 102, 241, 0.1)';
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.style.borderColor = 'var(--border-color)';
-        dropZone.style.background = 'rgba(255, 255, 255, 0.02)';
-    });
+    dropZone.addEventListener('dragover', () => dropZone.style.borderColor = 'var(--primary)');
+    dropZone.addEventListener('dragleave', () => dropZone.style.borderColor = 'var(--border)');
 
     dropZone.addEventListener('drop', (e) => {
-        dropZone.style.borderColor = 'var(--border-color)';
-        dropZone.style.background = 'rgba(255, 255, 255, 0.02)';
+        dropZone.style.borderColor = 'var(--border)';
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+    });
 
-        const dt = e.dataTransfer;
-        const files = dt.files;
+    fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
+    function handleFiles(files) {
         if (files.length) {
+            const file = files[0];
             fileInput.files = files;
-            updateFileLabel(files[0].name);
+            fileNameDisplay.textContent = file.name;
+            fileSizeDisplay.textContent = formatBytes(file.size);
+            dropContent.classList.add('hidden');
+            fileInfo.classList.remove('hidden');
         }
-    });
-
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) {
-            updateFileLabel(fileInput.files[0].name);
-        }
-    });
-
-    function updateFileLabel(name) {
-        const p = dropZone.querySelector('p');
-        p.innerHTML = `<strong>${name}</strong><br><span style="font-size: 0.8em; opacity: 0.7">Ready to upload</span>`;
-        p.style.color = 'var(--primary)';
     }
 
-    // --- Form Submission ---
+    removeFileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.value = '';
+        fileInfo.classList.add('hidden');
+        dropContent.classList.remove('hidden');
+    });
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    // --- Text Logic ---
+    textArea.addEventListener('input', () => {
+        charCount.textContent = `${textArea.value.length} characters`;
+    });
+
+    pasteBtn.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            textArea.value = text;
+            charCount.textContent = `${text.length} characters`;
+        } catch (err) { console.error(err); }
+    });
+
+    clearTextBtn.addEventListener('click', () => {
+        textArea.value = '';
+        charCount.textContent = '0 characters';
+    });
+
+    // --- Slider Logic ---
+    cardCountInput.addEventListener('input', () => {
+        cardCountVal.textContent = cardCountInput.value;
+    });
+
+    // --- Submit Logic ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        hideStatus();
+        statusMessage.classList.add('hidden');
 
         const formData = new FormData(form);
 
-        // Validation & Cleanup based on active tab
+        // Handle Source
         if (activeTab === 'file') {
             if (!fileInput.files.length) {
-                showStatus('Please select a file to upload.', 'error');
+                showStatus('Please upload a file.', 'error');
                 return;
             }
-            formData.delete('text'); // Remove text field
+            formData.delete('text');
         } else {
-            const textVal = document.getElementById('text').value;
-            if (!textVal.trim()) {
-                showStatus('Please paste some text content.', 'error');
+            if (!textArea.value.trim()) {
+                showStatus('Please enter some text.', 'error');
                 return;
             }
-            formData.delete('file'); // Remove file field
+            formData.delete('file');
         }
 
-        // UI Loading State
+        // Handle Focus Areas (Multi-select)
+        // FormData handles multiple checkboxes with same name automatically
+        // but we might want to join them or send as list.
+        // For now, let's keep standard behavior.
+
         setLoading(true);
 
         try {
@@ -114,67 +155,47 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                let errorMsg = 'Generation failed.';
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    if (errorJson.detail) errorMsg = errorJson.detail;
-                } catch (e) {
-                    errorMsg = errorText || errorMsg;
+                if (response.status === 429) {
+                    throw new Error("Quota exceeded! Try switching to Ollama or wait a minute.");
                 }
-                throw new Error(errorMsg);
+                const errText = await response.text();
+                let errMsg = "Generation failed";
+                try {
+                    const json = JSON.parse(errText);
+                    if (json.detail) errMsg = json.detail;
+                } catch (e) { }
+                throw new Error(errMsg);
             }
 
-            // Handle Download
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-
-            // Extract filename
-            const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'meshcards_deck.apkg';
-            if (contentDisposition) {
-                const match = contentDisposition.match(/filename="?([^"]+)"?/);
-                if (match && match[1]) filename = match[1];
-            }
-
-            a.download = filename;
+            a.download = 'meshcards_deck.apkg';
             document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
             a.remove();
 
-            showStatus('Success! Your Anki deck has been downloaded.', 'success');
-
-        } catch (error) {
-            console.error('Generation Error:', error);
-            showStatus(error.message, 'error');
+            showStatus('Deck generated successfully!', 'success');
+        } catch (err) {
+            showStatus(err.message, 'error');
         } finally {
             setLoading(false);
         }
     });
 
-    // --- Helpers ---
     function setLoading(isLoading) {
         submitBtn.disabled = isLoading;
         if (isLoading) {
-            btnText.textContent = 'Generating...';
-            loader.classList.remove('hidden');
+            submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Generating...';
         } else {
-            btnText.textContent = 'Generate Flashcards';
-            loader.classList.add('hidden');
+            submitBtn.innerHTML = '<i class="ph-bold ph-lightning"></i> Generate Flashcards';
         }
     }
 
     function showStatus(msg, type) {
         statusMessage.textContent = msg;
-        statusMessage.className = type; // 'success' or 'error'
+        statusMessage.className = `status-msg ${type}`;
         statusMessage.classList.remove('hidden');
-    }
-
-    function hideStatus() {
-        statusMessage.classList.add('hidden');
-        statusMessage.className = 'hidden';
     }
 });
