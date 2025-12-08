@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeshCards - AI Flashcard Generator</title>
+    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg width="40" height="40" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="50%" stop-color="#8b5cf6" />
+                            <stop offset="100%" stop-color="#0ea5e9" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
+                    <path d="M10 10H22V22H10V10Z" fill="white" fill-opacity="0.9" />
+                </svg>
+                <h1>MeshCards</h1>
+            </div>
+            <p class="subtitle">Transform your notes into Anki decks with AI</p>
+        </header>
+
+        <main>
+            <form id="generateForm">
+                <div class="form-group">
+                    <label>Input Source</label>
+                    <div class="tabs">
+                        <button type="button" class="tab-btn active" data-tab="file">Upload File</button>
+                        <button type="button" class="tab-btn" data-tab="text">Paste Text</button>
+                    </div>
+
+                    <div id="file-section" class="input-section active">
+                        <div class="file-upload" id="dropZone">
+                            <input type="file" id="file" name="file" accept=".txt,.pdf,.md">
+                            <p>Drag & drop your file here<br><span style="font-size: 0.8em; opacity: 0.7">Supports .txt,
+                                    .md, .pdf</span></p>
+                        </div>
+                    </div>
+
+                    <div id="text-section" class="input-section">
+                        <textarea id="text" name="text"
+                            placeholder="Paste your study notes, articles, or documentation here..."></textarea>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="deck_name">Deck Name</label>
+                        <input type="text" id="deck_name" name="deck_name" value="MeshCards Deck" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="max_cards">Card Count</label>
+                        <input type="number" id="max_cards" name="max_cards" value="20" min="1" max="50">
+                    </div>
+                </div>
+
+                <div class="grid-3">
+                    <div class="form-group">
+                        <label for="provider">AI Model</label>
+                        <select id="provider" name="provider">
+                            <option value="gemini" selected>Gemini Pro</option>
+                            <option value="openai">GPT-4o</option>
+                            <option value="anthropic">Claude 3.5</option>
+                            <option value="ollama">Ollama</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="difficulty">Level</label>
+                        <select id="difficulty" name="difficulty">
+                            <option value="Beginner">Beginner</option>
+                            <option value="Intermediate" selected>Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="style">Card Style</label>
+                        <select id="style" name="style">
+                            <option value="Mixed" selected>Mixed</option>
+                            <option value="Conceptual">Conceptual</option>
+                            <option value="Vocabulary">Vocabulary</option>
+                            <option value="Formula">Formula</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="images" name="images">
+                    <label for="images">Generate AI Images <span
+                            style="font-size: 0.8em; color: var(--text-muted)">(Gemini Only)</span></label>
+                </div>
+
+                <button type="submit" id="submitBtn">
+                    <span class="btn-text">Generate Flashcards</span>
+                    <span class="loader hidden"></span>
+                </button>
+            </form>
+
+            <div id="statusMessage" class="hidden"></div>
+        </main>
+
+        <footer>
+            <p>Powered by MeshCards Core &bull; <a href="https://github.com/pranavsinghpatil/VoxStitch"
+                    target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+    <script src="app.js?v=2"></script>
+</body>
+
+</html>
