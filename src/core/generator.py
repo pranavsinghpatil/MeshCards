@@ -8,7 +8,9 @@ class FlashcardGenerator:
 
     def generate_flashcards(self, text: str, config: DeckConfig) -> List[Flashcard]:
         prompt = self._build_prompt(text, config)
+        print(f"DEBUG: Sending prompt to LLM (Length: {len(prompt)})")
         response_json = self.llm_client.generate_json(prompt)
+        print(f"DEBUG: Received response from LLM: {response_json}")
         
         # Validate against schema
         generation_response = GenerationResponse(**response_json)

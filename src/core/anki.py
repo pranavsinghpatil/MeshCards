@@ -45,9 +45,11 @@ class AnkiDeckBuilder:
         # Generate a random deck ID
         deck_id = random.randrange(1 << 30, 1 << 31)
         deck = genanki.Deck(deck_id, deck_name)
+        print(f"DEBUG: Creating deck '{deck_name}' with ID {deck_id}")
 
-        for card in cards:
+        for i, card in enumerate(cards):
             tags = [t.replace(" ", "_") for t in card.tags]
+            print(f"DEBUG: Adding card {i+1}: {card.front[:30]}...")
             
             if card.type == "cloze":
                 note = genanki.Note(
@@ -63,6 +65,7 @@ class AnkiDeckBuilder:
                 )
             deck.add_note(note)
 
+        print(f"DEBUG: Writing deck with {len(deck.notes)} notes to {output_path}")
         genanki.Package(deck).write_to_file(output_path)
 
     def create_apkg_with_images(self, cards: List[Flashcard], deck_name: str, output_path: str, image_map: dict = None):
