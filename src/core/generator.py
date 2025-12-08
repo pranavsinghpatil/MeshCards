@@ -35,7 +35,7 @@ class FlashcardGenerator:
         5. If a concept is visual (e.g., a diagram, chart, or physical object), provide a short, descriptive `image_prompt`.
         6. **Advanced Formatting**:
            - **Cloze Deletion**: If a sentence has a key term to memorize, use `{{c1::term}}` syntax and set type to "cloze". Example: "The {{c1::mitochondria}} is the powerhouse of the cell."
-           - **Math**: Use LaTeX syntax wrapped in `\( ... \)` for inline math and `\[ ... \]` for block math.
+           - **Math**: Use LaTeX syntax wrapped in `\( ... \)` for inline math and `\[ ... \]` for block math. IMPORTANT: You must escape backslashes in the JSON string (e.g., use `\\frac` instead of `\frac`).
            - **Code**: Use Markdown code blocks (```python ... ```) for code snippets.
         7. Output MUST be valid JSON matching this schema:
         {{

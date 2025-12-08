@@ -1,12 +1,42 @@
 from abc import ABC, abstractmethod
 import json
 import os
+import re
 from typing import Dict, Any
 
 import google.generativeai as genai
 from openai import OpenAI
 from anthropic import Anthropic
 import ollama
+
+def safe_json_loads(text: str) -> Dict[str, Any]:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        # Attempt to fix common JSON errors
+        print(f"DEBUG: JSON parse failed ({e}), attempting repair...")
+        
+        # 1. Fix invalid escape sequences (e.g., \frac -> \\frac)
+        # This regex looks for a backslash that is NOT followed by a valid escape char (", \, /, b, f, n, r, t, u)
+        # and replaces it with a double backslash.
+        fixed_text = re.sub(r'\\(?![\\/bfnrtu"])', r'\\\\', text)
+        
+        try:
+            return json.loads(fixed_text)
+        except json.JSONDecodeError:
+            # 2. If that failed, try a more aggressive fix for LaTeX specifically
+            # Replace all single backslashes with double, except for already escaped ones?
+            # This is hard to do perfectly with regex. 
+            # Let's try to extract the JSON block if it's wrapped in markdown code blocks
+            match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(1))
+                except:
+                    pass
+            
+            # If all else fails, re-raise the original error
+            raise e
 
 class LLMClient(ABC):
     @abstractmethod
@@ -16,14 +46,14 @@ class LLMClient(ABC):
 class GeminiClient(LLMClient):
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
+        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
     def generate_json(self, prompt: str) -> Dict[str, Any]:
         response = self.model.generate_content(
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return json.loads(response.text)
+        return safe_json_loads(response.text)
 
 class OpenAIClient(LLMClient):
     def __init__(self, api_key: str):
@@ -35,7 +65,7 @@ class OpenAIClient(LLMClient):
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"}
         )
-        return json.loads(response.choices[0].message.content)
+        return safe_json_loads(response.choices[0].message.content)
 
 class AnthropicClient(LLMClient):
     def __init__(self, api_key: str):
@@ -47,17 +77,14 @@ class AnthropicClient(LLMClient):
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}]
         )
-        # Anthropic doesn't enforce JSON mode strictly like OpenAI/Gemini, 
-        # so we rely on the prompt and parsing.
-        # Ideally, we'd extract the JSON block.
         content = response.content[0].text
         # Simple heuristic to find JSON start/end if there's extra text
         try:
             start = content.find('{')
             end = content.rfind('}') + 1
             if start != -1 and end != -1:
-                return json.loads(content[start:end])
-            return json.loads(content)
+                return safe_json_loads(content[start:end])
+            return safe_json_loads(content)
         except json.JSONDecodeError:
              raise ValueError(f"Failed to parse JSON from Anthropic response: {content[:100]}...")
 
@@ -72,7 +99,7 @@ class OllamaClient(LLMClient):
             'content': prompt,
           },
         ], format='json')
-        return json.loads(response['message']['content'])
+        return safe_json_loads(response['message']['content'])
 
 def get_llm_client(provider: str, api_key: str = None, model_name: str = None) -> LLMClient:
     provider = provider.lower()

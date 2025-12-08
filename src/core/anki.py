@@ -3,6 +3,7 @@ from typing import List
 from .schemas import Flashcard
 import random
 import os
+import uuid
 
 class AnkiDeckBuilder:
     def __init__(self):
@@ -55,13 +56,15 @@ class AnkiDeckBuilder:
                 note = genanki.Note(
                     model=self.cloze_model,
                     fields=[card.front, card.back, ""],
-                    tags=tags
+                    tags=tags,
+                    guid=str(uuid.uuid4())
                 )
             else:
                 note = genanki.Note(
                     model=self.basic_model,
                     fields=[card.front, card.back, ""],
-                    tags=tags
+                    tags=tags,
+                    guid=str(uuid.uuid4())
                 )
             deck.add_note(note)
 
@@ -87,13 +90,15 @@ class AnkiDeckBuilder:
                 note = genanki.Note(
                     model=self.cloze_model,
                     fields=[card.front, card.back, image_val],
-                    tags=tags
+                    tags=tags,
+                    guid=str(uuid.uuid4())
                 )
             else:
                 note = genanki.Note(
                     model=self.basic_model,
                     fields=[card.front, card.back, image_val],
-                    tags=tags
+                    tags=tags,
+                    guid=str(uuid.uuid4())
                 )
             deck.add_note(note)
 

@@ -9,6 +9,7 @@ We've all been there: drowning in PDFs, lecture notes, and documentation, knowin
 ## 🚀 What it does
 MeshCards is an AI-powered tool that converts any text file (notes, articles, documentation) into a ready-to-use Anki deck (`.apkg`).
 - **Smart Extraction**: Identifies key concepts, vocabulary, and formulas.
+- **PDF Support**: Drag & drop PDF files to instantly convert them into flashcards.
 - **Visual Learning**: Automatically generates relevant AI images for cards using Gemini.
 - **Advanced Formats**: Supports Cloze deletions (fill-in-the-blank), LaTeX for math, and code blocks.
 - **Instant Export**: Generates a `.apkg` file you can import directly into Anki.
@@ -72,7 +73,7 @@ MeshCards is an AI-powered tool that converts any text file (notes, articles, do
 - The **Premium UI** that feels like a native app.
 
 ## ⏭️ What's next for MeshCards
-- **PDF Parsing**: Native support for uploading PDFs directly.
+- **YouTube Summary**: Generate cards directly from YouTube video transcripts.
 - **MeshMemory**: A custom spaced-repetition algorithm to replace Anki dependency.
 - **Mobile App**: A React Native companion app for studying on the go.
 
