@@ -424,6 +424,7 @@ input[type="range"] {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .selection-card {
@@ -471,6 +472,50 @@ input[type="range"] {
     color: #facc15;
 }
 
+/* Sub-labels & Custom Select */
+.sub-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+    margin-top: 0.5rem;
+}
+
+.model-specific-wrapper {
+    margin-top: 0.5rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.custom-select-wrapper {
+    position: relative;
+}
+
+.premium-select {
+    width: 100%;
+    appearance: none;
+    background: var(--bg-element);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 0.6rem 2.5rem 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.premium-select:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.select-icon {
+    position: absolute;
+    right: 0.8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--text-muted);
+}
+
 /* Chips */
 .chips-selector {
     display: flex;
@@ -503,6 +548,25 @@ input[type="range"] {
     background: var(--primary);
     color: white;
     border-color: var(--primary);
+}
+
+/* Custom Instructions Textarea */
+.mini-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 0.8rem;
+    background: var(--bg-element);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    resize: vertical;
+}
+
+.mini-textarea:focus {
+    border-color: var(--primary);
+    outline: none;
 }
 
 /* Style Selector */
@@ -682,4 +746,14 @@ input:checked+.slider:before {
 
 .hidden {
     display: none !important;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }

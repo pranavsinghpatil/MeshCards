@@ -12,7 +12,9 @@ class DeckConfig(BaseModel):
     name: str = Field(..., description="Name of the Anki deck")
     difficulty: Literal["Beginner", "Intermediate", "Advanced"] = "Intermediate"
     style: Literal["Conceptual", "Vocabulary", "Formula", "Mixed"] = "Mixed"
-    max_cards: int = Field(default=20, ge=1, le=100)
+    max_cards: int = Field(default=20, ge=1, le=500)
+    model_name: Optional[str] = None
+    custom_instructions: Optional[str] = None
 
 class GenerationResponse(BaseModel):
     deck_name: str

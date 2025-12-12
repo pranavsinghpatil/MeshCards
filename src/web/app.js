@@ -4,6 +4,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submitBtn');
     const statusMessage = document.getElementById('statusMessage');
 
+    // Landing Page
+    const landingPage = document.getElementById('landing-page');
+    const appContainer = document.getElementById('app-container');
+    const startBtn = document.getElementById('startBtn');
+
     // Tabs
     const tabs = document.querySelectorAll('.tab-btn');
     const inputAreas = document.querySelectorAll('.input-area');
@@ -27,6 +32,85 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sliders
     const cardCountInput = document.getElementById('max_cards');
     const cardCountVal = document.getElementById('cardCountVal');
+
+    // Model Selection logic
+    const providerRadios = document.querySelectorAll('input[name="provider"]');
+    const modelSelect = document.getElementById('model');
+    const ollamaOption = document.getElementById('ollama-option');
+    const imageGenGroup = document.getElementById('image-gen-group');
+    const imageComingSoon = document.getElementById('ai-coming-soon');
+
+    // --- Hero Logic ---
+    startBtn.addEventListener('click', () => {
+        landingPage.classList.add('slide-up');
+        appContainer.classList.remove('hidden');
+        appContainer.classList.add('visible');
+    });
+
+    // --- Config Fetching ---
+    fetch('/api/config')
+        .then(res => res.json())
+        .then(config => {
+            // Hide Ollama if disabled (Production)
+            if (!config.enable_ollama && ollamaOption) {
+                ollamaOption.style.display = 'none';
+                // If Ollama was checked, switch to Gemini
+                const ollamaRadio = document.querySelector('input[value="ollama"]');
+                if (ollamaRadio.checked) {
+                    document.querySelector('input[value="gemini"]').click();
+                }
+            }
+
+            // Hide Images if disabled
+            if (!config.enable_images) {
+                if (imageGenGroup) imageGenGroup.style.display = 'none';
+                if (imageComingSoon) imageComingSoon.style.display = 'flex';
+            } else {
+                if (imageGenGroup) imageGenGroup.style.display = 'flex';
+                if (imageComingSoon) imageComingSoon.style.display = 'none';
+            }
+        })
+        .catch(console.error);
+
+    const models = {
+        gemini: [
+            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Fast)' },
+            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Best Quality)' }
+        ],
+        openai: [
+            { id: 'gpt-4o', name: 'GPT-4o (Smartest)' },
+            { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo (Fast)' }
+        ],
+        ollama: [
+            { id: 'llama3', name: 'Llama 3 (8B)' },
+            { id: 'mistral', name: 'Mistral (7B)' },
+            { id: 'gemma', name: 'Gemma (7B)' },
+            { id: 'deepSeek-coder', name: 'DeepSeek Coder' }
+        ]
+    };
+
+    function updateModelOptions(provider) {
+        modelSelect.innerHTML = '';
+        const options = models[provider] || [];
+        options.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.id;
+            el.textContent = opt.name;
+            modelSelect.appendChild(el);
+        });
+    }
+
+    // Init with default (Gemini)
+    updateModelOptions('gemini');
+
+    providerRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                updateModelOptions(e.target.value);
+            }
+        });
+    });
 
     // --- Tab Logic ---
     tabs.forEach(tab => {
@@ -119,6 +203,36 @@ document.addEventListener('DOMContentLoaded', () => {
         cardCountVal.textContent = cardCountInput.value;
     });
 
+    // --- Async Polling Logic ---
+    async function pollJob(jobId) {
+        const maxRetries = 60; // 2 minutes (2s * 60)
+        let attempts = 0;
+
+        while (attempts < maxRetries) {
+            await new Promise(r => setTimeout(r, 2000)); // Wait 2s
+
+            try {
+                const res = await fetch(`/status/${jobId}`);
+                if (!res.ok) throw new Error("Status check failed");
+                const data = await res.json();
+
+                if (data.status === 'completed') {
+                    return true;
+                } else if (data.status === 'failed') {
+                    throw new Error(data.error || "Generation failed on server.");
+                }
+
+                // Still processing...
+                attempts++;
+                // Optional: Update UI with progress if we had it
+            } catch (e) {
+                console.error("Polling error", e);
+                throw e;
+            }
+        }
+        throw new Error("Timeout waiting for generation.");
+    }
+
     // --- Submit Logic ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -141,14 +255,10 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.delete('file');
         }
 
-        // Handle Focus Areas (Multi-select)
-        // FormData handles multiple checkboxes with same name automatically
-        // but we might want to join them or send as list.
-        // For now, let's keep standard behavior.
-
         setLoading(true);
 
         try {
+            // 1. Submit Job
             const response = await fetch('/generate', {
                 method: 'POST',
                 body: formData
@@ -156,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) {
                 if (response.status === 429) {
-                    throw new Error("Quota exceeded! Try switching to Ollama or wait a minute.");
+                    throw new Error("⚠️ Rate Limit Reached! \n\nPlease wait or use your own API Key to bypass limits.");
                 }
                 const errText = await response.text();
                 let errMsg = "Generation failed";
@@ -167,14 +277,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errMsg);
             }
 
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'meshcards_deck.apkg';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            const { job_id } = await response.json();
+
+            // 2. Poll for Completion
+            showStatus('Processing with AI... This may take a moment.', 'success');
+            await pollJob(job_id);
+
+            // 3. Download
+            showStatus('Downloading your deck...', 'success');
+            const downloadLink = document.createElement('a');
+            downloadLink.href = `/download/${job_id}`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            downloadLink.remove();
 
             showStatus('Deck generated successfully!', 'success');
         } catch (err) {
@@ -187,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setLoading(isLoading) {
         submitBtn.disabled = isLoading;
         if (isLoading) {
-            submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Generating...';
+            submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Processing...';
         } else {
             submitBtn.innerHTML = '<i class="ph-bold ph-lightning"></i> Generate Flashcards';
         }

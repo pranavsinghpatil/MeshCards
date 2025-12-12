@@ -7,27 +7,27 @@
 We've all been there: drowning in PDFs, lecture notes, and documentation, knowing we need to study but dreading the hours it takes to make flashcards. We wanted to build a bridge between **passive reading** and **active recall**. MeshCards was born from the desire to make spaced repetition accessible to everyone, instantly.
 
 ## 🚀 What it does
-MeshCards is an AI-powered tool that converts any text file (notes, articles, documentation) into a ready-to-use Anki deck (`.apkg`).
-- **Smart Extraction**: Identifies key concepts, vocabulary, and formulas.
-- **PDF Support**: Drag & drop PDF files to instantly convert them into flashcards.
-- **Visual Learning**: Automatically generates relevant AI images for cards using Gemini.
-- **Advanced Formats**: Supports Cloze deletions (fill-in-the-blank), LaTeX for math, and code blocks.
-- **Instant Export**: Generates a `.apkg` file you can import directly into Anki.
+MeshCards is an AI-powered Studio that converts any text or PDF into ready-to-use Anki decks (`.apkg`).
+
+- **✨ MeshCards Studio**: A premium, glassmorphism web interface for creating decks.
+- **🧠 Multi-Model Support**: Choose between **Gemini**, **OpenAI**, or local **Ollama** models.
+- **📄 PDF & Text Support**: Drag & drop lecture slides or paste raw notes.
+- **🎨 Visual Learning**: (Optional) Auto-generate AI illustrations for your cards.
+- **⚡ Production Ready**: 
+    - **Zero-Cost Scaling**: Runs efficiently on free-tier hosting.
+    - **Dockerized**: Deploy anywhere with a single command.
+    - **Rate Limiting**: Built-in safeguards for public demos.
 
 ## 🛠️ How we built it
-- **Frontend**: Built with **HTML5, CSS3 (Glassmorphism), and Vanilla JS**. We focused on a premium, distraction-free dark mode experience.
-- **Backend**: Powered by **FastAPI** for high-performance async processing.
-- **AI Core**:
-    - **Google Gemini Pro**: For intelligent text analysis and card generation.
-    - **Google Imagen**: For generating contextual illustrations for flashcards.
-- **Deck Generation**: Used `genanki` to programmatically construct Anki decks with media assets.
-- **Deployment**: Containerized and ready for cloud deployment.
+- **Frontend**: **Vanilla JS + CSS Variables** for a lightweight "Studio" feel. No frameworks, just speed.
+- **Backend**: **FastAPI** with `BackgroundTasks` for async deck generation.
+- **Infrastructure**: Docker multi-stage build + internal queueing (no Redis required).
 
 ## 💻 Installation & Usage
 
 ### Prerequisites
-- Python 3.9+
-- A Google Gemini API Key
+- Python 3.11+ OR Docker
+- API Key (Gemini or OpenAI)
 
 ### Quick Start
 1. **Clone the repo**
@@ -61,7 +61,7 @@ MeshCards is an AI-powered tool that converts any text file (notes, articles, do
    # Manual
    uvicorn src.api.server:app --reload
    ```
-   Visit `http://localhost:8000` to start generating!
+   Visit `http://localhost:8080` to start generating!
 
 ## 🧠 Challenges we ran into
 - **Prompt Engineering**: Getting the LLM to consistently output valid JSON for complex card types (like Cloze deletions) was tricky. We implemented a robust validation loop to ensure 100% success rate.

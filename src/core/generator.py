@@ -27,6 +27,9 @@ class FlashcardGenerator:
         - Style: {config.style}
         - Max Cards: {config.max_cards}
         
+        **Custom Context/Instructions**:
+        {config.custom_instructions or "None"}
+        
         **Instructions**:
         1. Extract the most important concepts, definitions, and relationships.
         2. Create Question/Answer pairs.

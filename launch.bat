@@ -20,12 +20,12 @@ pip install -r requirements.txt > nul 2>&1
 
 echo.
 echo Starting MeshCards Server...
-echo Opening http://localhost:8000 in your browser...
+echo Opening http://localhost:8080 in your browser...
 
 REM Open browser
-start http://localhost:8000
+start http://localhost:8080
 
 REM Start Server
-python -m uvicorn src.api.server:app --reload --port 8000
+python -m uvicorn src.api.server:app --reload --port 8080
 
 endlocal
