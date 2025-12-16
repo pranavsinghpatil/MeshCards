@@ -59,7 +59,7 @@ MeshCards is an AI-powered Studio that converts any text or PDF into ready-to-us
    launch.bat
    
    # Manual
-   uvicorn src.api.server:app --reload
+   uvicorn src.api.index:app --reload
    ```
    Visit `http://localhost:8080` to start generating!
 

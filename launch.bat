@@ -1,31 +1,36 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 
-echo ==========================================
-echo       MeshCards Launcher
-echo ==========================================
+title MeshCards Studio
 
-REM Check if venv exists
+echo ===================================================
+echo             MeshCards Studio Launcher
+echo ===================================================
+
+:: 1. Setup Python Env
 if not exist "venv" (
-    echo Virtual environment not found. Running setup...
-    call setup_and_test.bat
+    echo [INFO] Creating Python venv...
+    python -m venv venv
+)
+call venv\Scripts\activate
+pip install -r requirements.txt >nul 2>&1
+
+:: 2. Check Frontend Build
+if not exist "frontend\dist" (
+    echo [INFO] Frontend build not found. Building React app...
+    cd frontend
+    call npm install
+    call npm run build
+    cd ..
 )
 
-REM Activate venv
-call venv\Scripts\activate
-
-REM Install dependencies to be safe (fast if already installed)
-echo Checking dependencies...
-pip install -r requirements.txt > nul 2>&1
-
+:: 3. Launch
 echo.
-echo Starting MeshCards Server...
-echo Opening http://localhost:8080 in your browser...
+echo [INFO] Starting Server...
+echo [INFO] Browser will open in 5 seconds...
 
-REM Open browser
-start http://localhost:8080
+:: Launch Browser in background after delay
+start /b cmd /c "timeout /t 5 /nobreak >nul && start http://localhost:8000"
 
-REM Start Server
-python -m uvicorn src.api.server:app --reload --port 8080
-
-endlocal
+:: Start Uvicorn
+python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
