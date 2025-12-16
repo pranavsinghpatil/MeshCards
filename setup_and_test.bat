@@ -38,7 +38,7 @@ if %ERRORLEVEL% EQU 0 (
 echo.
 echo ==========================================
 echo To run the API server, use:
-echo venv\Scripts\uvicorn src.api.server:app --reload
+echo venv\Scripts\python -m uvicorn src.api.server:app --reload --port 8000
 echo ==========================================
 
 pause

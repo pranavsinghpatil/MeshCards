@@ -1,0 +1,21 @@
+from typing import List, Optional, Literal
+from pydantic import BaseModel, Field
+
+class Flashcard(BaseModel):
+    front: str = Field(..., description="The question or front side of the card")
+    back: str = Field(..., description="The answer or back side of the card")
+    tags: List[str] = Field(default_factory=list, description="Tags for the card")
+    image_prompt: Optional[str] = Field(None, description="Prompt for generating an image for this card")
+    type: Literal["basic", "cloze"] = Field("basic", description="Type of the card")
+
+class DeckConfig(BaseModel):
+    name: str = Field(..., description="Name of the Anki deck")
+    difficulty: Literal["Beginner", "Intermediate", "Advanced"] = "Intermediate"
+    style: Literal["Conceptual", "Vocabulary", "Formula", "Mixed"] = "Mixed"
+    max_cards: int = Field(default=20, ge=1, le=500)
+    model_name: Optional[str] = None
+    custom_instructions: Optional[str] = None
+
+class GenerationResponse(BaseModel):
+    deck_name: str
+    cards: List[Flashcard]
