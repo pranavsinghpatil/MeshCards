@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request, Header
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -124,8 +124,8 @@ def get_config():
         "enable_images": settings.ENABLE_IMAGE_GEN,
         "env": settings.ENV,
         # Frontend needs Supabase Config for Auth
-        "supabase_url": os.getenv("SUPABASE_URL"),
-        "supabase_anon_key": os.getenv("SUPABASE_KEY") # Assuming the user provided key is usable by frontend
+        "supabase_url": settings.SUPABASE_URL,
+        "supabase_anon_key": settings.SUPABASE_KEY
     }
 
 @app.post("/generate")
