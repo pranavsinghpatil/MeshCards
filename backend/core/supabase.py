@@ -14,8 +14,8 @@ class SupabaseManager:
         return cls._instance
 
     def _initialize(self):
-        url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_KEY")
+        url = settings.SUPABASE_URL
+        key = settings.SUPABASE_KEY
 
         if not url or not key:
             logger.warning("Supabase credentials not found. Quotas and Persistence will be disabled.")

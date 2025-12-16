@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     ENABLE_OLLAMA: bool = True
     ENABLE_IMAGE_GEN: bool = False # Hidden as per user request
     
+    # Supabase (Optional if not using persistence/auth)
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_KEY: Optional[str] = None
+
     model_config = {
         "env_file": ".env",
         "extra": "ignore"
