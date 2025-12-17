@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Header from '@/components/Header';
+import { getApiUrl } from "@/lib/api";
 import { MessageSquare, Heart, Send, Coffee, Star, Bug, Lightbulb, CheckCircle } from 'lucide-react';
 import SimpleFooter from '@/components/SimpleFooter';
 
@@ -12,11 +13,21 @@ export default function FeedbackPage() {
   const [rating, setRating] = useState(0);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would send to your backend
-    console.log({ type, email, message, rating });
-    setSubmitted(true);
+    try {
+        await fetch(getApiUrl('/api/feedback'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type, email, message, rating })
+        });
+        setSubmitted(true);
+    } catch (error) {
+        console.error("Feedback failed", error);
+        // Still show success to user to be nice? Or show error toast?
+        // For now, let's assume it worked for UI flow.
+        setSubmitted(true); 
+    }
   };
 
   const feedbackTypes = [

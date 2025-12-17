@@ -12,11 +12,15 @@ import time
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import urllib.request
+import json
 from pypdf import PdfReader
 
 from backend.core.llm import get_llm_client
 from backend.core.generator import FlashcardGenerator
-from backend.core.schemas import DeckConfig
+from backend.core.schemas import DeckConfig, FeedbackRequest
+
+
 from backend.core.anki import AnkiDeckBuilder
 from backend.core.images import get_image_generator
 from backend.core.config import settings
@@ -115,6 +119,45 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = str(e)
 
+
+@app.post("/api/feedback")
+async def submit_feedback(feedback: FeedbackRequest):
+    # 1. Log to console (Basis)
+    log_msg = f"FEEDBACK [{feedback.type}]: {feedback.message} ({feedback.rating}/5) - {feedback.email}"
+    logger.info(log_msg)
+    
+    # 2. Local Log (Dev)
+    if settings.ENV != "production":
+        try:
+            with open("feedback.log", "a") as f:
+                f.write(f"[{time.ctime()}] {log_msg}\n")
+        except: pass
+        
+    # 3. GitHub Issue Integration
+    if settings.GITHUB_TOKEN and settings.GITHUB_REPO:
+        try:
+            url = f"https://api.github.com/repos/{settings.GITHUB_REPO}/issues"
+            data = {
+                "title": f"User Feedback: {feedback.type.title()}",
+                "body": f"**Rating:** {feedback.rating}/5\n**Email:** {feedback.email}\n**Type:** {feedback.type}\n\n**Message:**\n{feedback.message}",
+                "labels": ["feedback", "user-submitted"]
+            }
+            req = urllib.request.Request(
+                url, 
+                data=json.dumps(data).encode("utf-8"), 
+                headers={
+                    "Authorization": f"token {settings.GITHUB_TOKEN}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": settings.APP_NAME
+                }
+            )
+            with urllib.request.urlopen(req) as res:
+                if res.status == 201:
+                    logger.info("Feedback posted to GitHub Issues")
+        except Exception as e:
+            logger.error(f"Failed to post feedback to GitHub: {e}")
+
+    return {"status": "received", "message": "Feedback submitted."}
 
 @app.get("/api/config")
 def get_config():

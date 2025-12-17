@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     SUPABASE_URL: Optional[str] = None
     SUPABASE_KEY: Optional[str] = None
 
+    # Feedback Integrations
+    GITHUB_TOKEN: Optional[str] = None
+    GITHUB_REPO: Optional[str] = None # e.g. "username/repo"
+
     model_config = {
         "env_file": ".env",
         "extra": "ignore"

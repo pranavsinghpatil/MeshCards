@@ -19,3 +19,9 @@ class DeckConfig(BaseModel):
 class GenerationResponse(BaseModel):
     deck_name: str
     cards: List[Flashcard]
+
+class FeedbackRequest(BaseModel):
+    type: str
+    message: str
+    email: Optional[str] = None
+    rating: int = 0
