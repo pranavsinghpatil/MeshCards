@@ -1,13 +1,13 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import Footer from "@/components/Footer";
+import SimpleFooter from "@/components/SimpleFooter";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <Hero />
-      <Footer />
+      <SimpleFooter />
     </div>
   );
 };

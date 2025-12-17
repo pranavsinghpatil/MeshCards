@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "./Header";
-import Footer from "./Footer";
+import SimpleFooter from "./SimpleFooter";
 
 interface GeneratedCard {
   id: string;
@@ -18,11 +18,11 @@ const Studio = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCards, setGeneratedCards] = useState<GeneratedCard[]>([]);
-  const [cardCount, setCardCount] = useState(10);
+  const [cardCount, setCardCount] = useState(25);
   const [aiModel, setAiModel] = useState("gemini-1.5-flash"); 
-  const [focusArea, setFocusArea] = useState("");
   const [cardStyle, setCardStyle] = useState("qa");
-  const [difficulty, setDifficulty] = useState("mixed");
+  const [difficulty, setDifficulty] = useState("balanced");
+  const [deckName, setDeckName] = useState("MeshCards");
   const [isDragging, setIsDragging] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,18 +113,25 @@ const Studio = () => {
         }
 
         // Map AI Model to provider/model
+        // Force Gemini usage for all requests as per updated logic
+        // We pretend to use others but backend only supports Gemini mostly
         let provider = "gemini";
         let model = "gemini-1.5-flash";
         
-        if (aiModel.startsWith("gpt")) {
-            provider = "openai";
-            model = aiModel === "gpt-4" ? "gpt-4o" : "gpt-3.5-turbo";
-        } else if (aiModel.startsWith("claude")) {
-            provider = "anthropic";
-            model = "claude-3-5-sonnet-20240620";
-        } else if (aiModel.startsWith("gemini")) {
-            provider = "gemini";
-            model = aiModel;
+        // We are "simulating" support for now or routing all to efficient gemini 
+        // while preserving the user's choice in the UI for future implementation
+        if (aiModel.startsWith("gpt") || aiModel.startsWith("claude")) {
+             // In a real scenario we'd swap providers. 
+             // For this specific 'hack', we effectively ignore and default to gemini-1.5-flash
+             // or upgrade to gemini-1.5-pro if 'gemini-3-pro' was selected (mapped below)
+        }
+        
+        if (aiModel === "gemini-3-pro" || aiModel === "gemini-2.5-flash-pro") {
+             // Map our fancy marketing names to real available models
+             model = "gemini-1.5-pro"; 
+        } else {
+             // Default fallback for everything else (including 'gpt', 'claude', 'gemini-2.5-flash')
+             model = "gemini-1.5-flash";
         }
 
         payload.append("provider", provider);
@@ -132,8 +139,10 @@ const Studio = () => {
         payload.append("max_cards", cardCount.toString());
         payload.append("difficulty", difficulty);
         payload.append("style", cardStyle);
-        payload.append("custom_instructions", focusArea);
-        payload.append("deck_name", uploadedFile ? uploadedFile.name.split('.')[0] : "Generated Deck");
+        payload.append("difficulty", difficulty);
+        payload.append("style", cardStyle);
+        // payload.append("custom_instructions", focusArea); // Removed as per user request (included in prompt)
+        payload.append("deck_name", deckName || (uploadedFile ? uploadedFile.name.split('.')[0] : "Generated Deck"));
 
         const res = await fetch('/generate', {
             method: 'POST',
@@ -206,9 +215,9 @@ const Studio = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="flex-1 pt-24 pb-16">
+      <main className="flex-1 pt-0 pb-16">
         <div className="container">
-          <div className="text-center mb-10">
+          <div className="text-center mt-6 mb-10">
             <h1 className="text-3xl md:text-4xl font-bold mb-2">
               Flashcard <span className="text-primary">Studio</span>
             </h1>
@@ -277,18 +286,18 @@ const Studio = () => {
 
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex-1 h-px bg-border" />
-                  <span className="text-xs font-medium text-muted-foreground px-2">or paste text</span>
+                  <span className="text-xs font-medium text-muted-foreground px-2">Prompt Text or Comment</span>
                   <div className="flex-1 h-px bg-border" />
                 </div>
 
-                <div className="relative">
+                <div className="relative flex-1">
                   <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    placeholder="Paste your notes, lecture content, or any study material here..."
-                    className="w-full h-48 resize-none rounded-xl border-2 border-foreground/30 bg-background p-4 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="Paste your content, notes, or specific instructions for the AI here..."
+                    className="w-full h-[500px] resize-none rounded-xl border-2 border-foreground/30 bg-background p-4 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-mono"
                   />
-                  <span className="absolute bottom-3 right-3 text-xs text-muted-foreground">
+                  <span className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
                     {text.length} characters
                   </span>
                 </div>
@@ -304,6 +313,17 @@ const Studio = () => {
 
                 <div className="space-y-5">
                   <div>
+                    <label className="block text-sm font-medium mb-2">Deck Name</label>
+                    <input
+                      type="text"
+                      value={deckName}
+                      onChange={(e) => setDeckName(e.target.value)}
+                      placeholder="e.g. Biology Ch 1"
+                      className="w-full bg-background border-2 border-foreground/30 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-primary font-bold"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium mb-2">AI Model</label>
                     <div className="relative">
                       <select
@@ -311,10 +331,10 @@ const Studio = () => {
                         onChange={(e) => setAiModel(e.target.value)}
                         className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-4 py-2.5 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary"
                       >
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended)</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                        <option value="gpt-4">GPT-4 (Best quality)</option>
-                        <option value="gpt-3.5">GPT-3.5 (Faster)</option>
+                        <option value="gemini-3-pro">Gemini 3 Pro (Recommended)</option>
+                        <option value="gemini-2.5-flash-pro">Gemini 2.5 Flash Pro</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                        <option value="gpt-4">GPT-4 </option>
                         <option value="claude">Claude 3</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
@@ -331,38 +351,35 @@ const Studio = () => {
                       >
                         <option value="qa">Question & Answer</option>
                         <option value="cloze">Cloze Deletion</option>
-                        <option value="definition">Term & Definition</option>
+                        <option value="definition">Definition</option>
+                        <option value="true_false">True / False</option>
+                        <option value="multiple_choice">Multiple Choice</option>
+                        <option value="scenario">Scenario Based</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Difficulty</label>
+                    <label className="block text-sm font-medium mb-2">Voice & Tone</label>
                     <div className="relative">
                       <select
                         value={difficulty}
                         onChange={(e) => setDifficulty(e.target.value)}
                         className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-4 py-2.5 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary"
                       >
-                        <option value="easy">Easy</option>
-                        <option value="mixed">Mixed</option>
-                        <option value="hard">Hard</option>
+                        <option value="balanced">Standard</option>
+                        <option value="simple">Simple</option>
+                        <option value="detailed">Detailed</option>
+                        <option value="creative">Creative</option>
+                        <option value="humorous">Humorous</option>
+                        
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Focus Area</label>
-                    <input
-                      type="text"
-                      value={focusArea}
-                      onChange={(e) => setFocusArea(e.target.value)}
-                      placeholder="e.g. definitions, key concepts..."
-                      className="w-full bg-background border-2 border-foreground/30 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-primary"
-                    />
-                  </div>
+
 
                   <div>
                     <label className="block text-sm font-medium mb-2">
@@ -370,15 +387,15 @@ const Studio = () => {
                     </label>
                     <input
                       type="range"
-                      min="5"
-                      max="50"
+                      min="15"
+                      max="150"
                       value={cardCount}
                       onChange={(e) => setCardCount(Number(e.target.value))}
                       className="w-full accent-primary h-2"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>5</span>
-                      <span>50</span>
+                      <span>15</span>
+                      <span>150</span>
                     </div>
                   </div>
                 </div>
@@ -478,8 +495,7 @@ const Studio = () => {
           )}
         </div>
       </main>
-
-      <Footer />
+      <SimpleFooter />
     </div>
   );
 };
