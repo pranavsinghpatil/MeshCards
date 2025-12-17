@@ -52,15 +52,16 @@ class GeminiClient(LLMClient):
         model_map = {
             "gemini-3-pro": "gemini-1.5-pro-002",
             "gemini-2.5-pro": "gemini-1.5-pro-001",
-            "gemini-2.5-flash": "gemini-1.5-flash-001"
+            "gemini-2.5-flash": "gemini-1.5-flash-001",
+            # Fallbacks for direct names
+            "gemini-1.5-flash": "gemini-1.5-flash-001",
+            "gemini-1.5-pro": "gemini-1.5-pro-001"
         }
         
         # Use mapped model if exists, otherwise try the raw string (fallback)
         real_model_name = model_map.get(model_name, model_name)
         
-        # Fallback for defaults if passed incorrectly
-        if real_model_name == "gemini-2.5-flash":
-             real_model_name = "gemini-1.5-flash-001"
+
 
         self.model = genai.GenerativeModel(real_model_name)
 
