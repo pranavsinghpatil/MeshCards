@@ -1,8 +1,25 @@
 import { ArrowRight, FileText, Brain, Download, GraduationCap, Microscope, BookOpen, Briefcase, Zap, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { signInWithGoogle } from "@/lib/supabase";
 
 const Hero = () => {
+  const { session } = useAuth();
+  const navigate = useNavigate();
+
+  const handleGetStarted = async () => {
+    if (session) {
+      navigate("/studio");
+    } else {
+      try {
+        await signInWithGoogle();
+      } catch (error) {
+        console.error("Sign in failed", error);
+      }
+    }
+  };
+
   return (
     <div className="pt-0">
       {/* Hero Section - Neutral/Theme-aware background */}
@@ -27,16 +44,19 @@ const Hero = () => {
               </p>
               
               <div className="flex flex-wrap gap-4">
-                <Link to="/studio">
-                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 text-lg rounded-xl font-semibold shadow-lg">
-                    Get Started Free
-                  </Button>
-                </Link>
-                <a href="#features">
-                  <Button variant="ghost" className="text-foreground hover:bg-muted/50 px-6 py-6 text-lg rounded-xl font-medium">
-                    See how it works <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </a>
+                <Button 
+                  onClick={handleGetStarted}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-6 text-lg rounded-xl font-semibold shadow-lg"
+                >
+                  {session ? "Create new Deck" : "Get Started Free"}
+                </Button>
+                {!session && (
+                  <a href="#features">
+                    <Button variant="ghost" className="text-foreground hover:bg-muted/50 px-6 py-6 rounded-xl font-medium">
+                      See how it works <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </a>
+                )}
               </div>
             </div>
 
@@ -55,7 +75,7 @@ const Hero = () => {
                     <div className="w-3 h-3 rounded-full bg-yellow-400" />
                     <div className="w-3 h-3 rounded-full bg-green-400" />
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground ml-2">ankigen.app</span>
+                  <span className="text-xs font-medium text-muted-foreground ml-2">MeshCards</span>
                 </div>
                 
                 {/* Card content */}
@@ -176,14 +196,10 @@ const Hero = () => {
         <div className="max-w-xl mx-auto text-center">
           <div className="bg-card border-2 border-primary/20 rounded-2xl p-8 md:p-12 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-primary" />
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold mb-6">
-              <Zap className="w-4 h-4" />
-              Early Access
-            </div>
             
-            <h2 className="text-3xl font-bold mb-4">Free to Use</h2>
+            <h2 className="text-3xl font-bold mb-4 mt-8">Free to Use</h2>
             <p className="text-muted-foreground mb-6 text-sm">
-              Free during early access. Support development if you find it useful!
+              Completely free. Support development if you find it useful!
             </p>
             
             <div className="bg-muted/50 rounded-xl p-6 mb-6">

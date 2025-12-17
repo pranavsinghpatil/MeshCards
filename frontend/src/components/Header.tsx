@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Mail, MessageSquare } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Heart } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { useTheme, themes } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { signInWithGoogle, signOut } from "@/lib/supabase";
@@ -13,15 +13,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { session, user } = useAuth();
-  const [contactMessage, setContactMessage] = useState("");
+  const location = useLocation();
 
   const handleSignIn = async () => {
     try {
@@ -35,6 +32,12 @@ const Header = () => {
       await signOut();
   };
 
+  const navLinks = [
+    { name: "Home", path: "/" },
+    { name: "Studio", path: "/studio" },
+    { name: "Feedback", path: "/feedback" },
+  ];
+
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-4">
@@ -44,44 +47,76 @@ const Header = () => {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span>Anki<span className="text-primary">Gen</span></span>
+            <span>Mesh<span className="text-primary">Cards</span></span>
           </Link>
+
+          {/* Navigation (Only when signed in) */}
+          {session && (
+            <nav className="hidden md:flex items-center gap-6">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    location.pathname === link.path
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </nav>
+          )}
 
           {/* Actions */}
           <div className="flex items-center gap-2">
             
-            {/* Contact Dialog */}
+            {/* Sponsor Dialog */}
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="hidden md:flex gap-2">
-                  <Mail className="w-4 h-4" />
-                  Contact
+                <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-pink-500 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/10">
+                  <Heart className="w-4 h-4 fill-current" />
+                  Sponsor
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Contact Developer</DialogTitle>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-pink-500 fill-current" />
+                    Support MeshCards
+                  </DialogTitle>
                   <DialogDescription>
-                    Have a question or suggestion? Send us a message directly.
+                    Help us keep this project free and working for everyone.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Your Email</Label>
-                    <Input id="email" placeholder="name@example.com" type="email" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="message">Message</Label>
-                    <Textarea 
-                      id="message" 
-                      placeholder="Type your message here..." 
-                      value={contactMessage}
-                      onChange={(e) => setContactMessage(e.target.value)}
-                    />
-                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    MeshCards is a labor of love, designed to help students and professionals learn faster. 
+                    Running the AI models and servers costs money. 
+                  </p>
+                  <p className="font-medium">
+                    If you find this tool useful, please consider buying me a coffee! ☕
+                  </p>
                 </div>
-                <div className="flex justify-end">
-                    <Button onClick={() => alert("Message sent! (Mock)")}>Send Message</Button>
+                <div className="flex justify-between items-center">
+                    <iframe 
+                        src="https://github.com/sponsors/pranavsinghpatil/button" 
+                        title="Sponsor pranavsinghpatil" 
+                        height="32" 
+                        width="114" 
+                        style={{ border: 0, borderRadius: "6px" }}
+                    ></iframe>
+                    <a 
+                      href="https://buymeacoffee.com/htclodkzgo" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto"
+                    >
+                      <Button className="w-full bg-[#FFDD00] text-black hover:bg-[#FFDD00]/90 font-bold">
+                        Buy Me a Coffee
+                      </Button>
+                    </a>
                 </div>
               </DialogContent>
             </Dialog>
@@ -141,21 +176,42 @@ const Header = () => {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border animate-fade-in">
             <nav className="flex flex-col gap-2">
+              {session && navLinks.map(link => (
+                 <Link 
+                    key={link.path} 
+                    to={link.path} 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-lg"
+                 >
+                    {link.name}
+                 </Link>
+              ))}
+
               <Dialog>
                   <DialogTrigger asChild>
-                     <Button variant="ghost" className="w-full justify-start px-4">Contact Developer</Button>
+                     <Button variant="ghost" className="w-full justify-start px-4 text-pink-500">
+                        <Heart className="w-4 h-4 mr-2" />
+                        Sponsor / Support
+                     </Button>
                   </DialogTrigger>
                    <DialogContent>
                         <DialogHeader>
-                        <DialogTitle>Contact Developer</DialogTitle>
+                        <DialogTitle>Support MeshCards</DialogTitle>
                         <DialogDescription>
-                            Have a question? Send us a message.
+                            Help keep the project alive!
                         </DialogDescription>
                         </DialogHeader>
                          <div className="grid gap-4 py-4">
-                            <Input placeholder="Your Email" />
-                            <Textarea placeholder="Message" />
-                            <Button onClick={() => setMobileMenuOpen(false)}>Send</Button>
+                            <p className="text-sm text-muted-foreground">
+                                Your support helps cover server costs and API fees.
+                            </p>
+                            <a 
+                              href="https://buymeacoffee.com/htclodkzgo" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
+                              <Button className="w-full bg-[#FFDD00] text-black">Buy Me a Coffee</Button>
+                            </a>
                         </div>
                    </DialogContent>
               </Dialog>

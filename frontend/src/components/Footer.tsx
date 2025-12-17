@@ -11,7 +11,7 @@ const Footer = () => {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg">AnkiGen</span>
+            <span className="font-bold text-lg">MeshCards</span>
           </Link>
 
           {/* Links */}
@@ -52,7 +52,7 @@ const Footer = () => {
 
         <div className="text-center mt-8 pt-6 border-t border-border">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} AnkiGen. Free during early access.
+            © {new Date().getFullYear()} MeshCards. Free for everyone.
           </p>
         </div>
       </div>
