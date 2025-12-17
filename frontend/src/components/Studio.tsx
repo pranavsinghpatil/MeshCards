@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { getSupabase } from "@/lib/supabase";
+import { getApiUrl } from "@/lib/api";
 import Header from "./Header";
 import SimpleFooter from "./SimpleFooter";
 
@@ -87,7 +88,7 @@ const Studio = () => {
 
       while (attempts < maxRetries) {
           await new Promise(r => setTimeout(r, 2000));
-          const res = await fetch(`/status/${jobId}`);
+          const res = await fetch(getApiUrl(`/status/${jobId}`));
           if (!res.ok) throw new Error("Status check failed");
 
           const data = await res.json();
@@ -113,6 +114,7 @@ const Studio = () => {
         title: "No content",
         description: "Please paste text or upload a file first.",
         variant: "destructive",
+        
       });
       return;
     }
@@ -143,7 +145,7 @@ const Studio = () => {
         // payload.append("custom_instructions", focusArea); // Removed as per user request (included in prompt)
         payload.append("deck_name", deckName || (uploadedFile ? uploadedFile.name.split('.')[0] : "Generated Deck"));
 
-        const res = await fetch('/generate', {
+        const res = await fetch(getApiUrl('/generate'), {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${session.access_token}`
@@ -169,7 +171,7 @@ const Studio = () => {
         toast({ title: "Success!", description: "Deck generated successfully. Downloading..." });
 
         const downloadLink = document.createElement('a');
-        downloadLink.href = `/download/${job_id}`;
+        downloadLink.href = getApiUrl(`/download/${job_id}`);
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);

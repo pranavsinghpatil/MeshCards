@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { initSupabase, getSupabase } from "@/lib/supabase";
+import { getApiUrl } from "@/lib/api";
 
 interface AuthContextType {
   session: Session | null;
@@ -19,7 +20,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         // Fetch Config & Init Supabase
-        fetch('/api/config')
+        fetch(getApiUrl('/api/config'))
             .then(res => res.json())
             .then(config => {
                 if (config.supabase_url && config.supabase_anon_key) {

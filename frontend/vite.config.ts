@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/api': 'http://localhost:8000',
+      '/generate': 'http://localhost:8000',
+      '/status': 'http://localhost:8000',
+      '/download': 'http://localhost:8000',
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
