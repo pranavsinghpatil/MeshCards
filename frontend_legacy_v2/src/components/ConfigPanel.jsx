@@ -14,8 +14,9 @@ export default function ConfigPanel({ config, onSubmit, isLoading, status }) {
     // Model Options
     const models = {
         gemini: [
-            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Fast)' },
-            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Best Quality)' },
+            { id: 'gemini-3-pro', name: 'Gemini 3 Pro (Most Advanced)' },
+            { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Balanced)' },
+            { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Fast)' },
         ],
         openai: [
             { id: 'gpt-4o', name: 'GPT-4o (Smartest)' },

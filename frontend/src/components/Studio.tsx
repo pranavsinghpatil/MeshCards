@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, FileText, X, Download, RefreshCw, ChevronDown, Copy, Check, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { getSupabase } from "@/lib/supabase";
 import Header from "./Header";
 import SimpleFooter from "./SimpleFooter";
 
@@ -19,13 +20,28 @@ const Studio = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCards, setGeneratedCards] = useState<GeneratedCard[]>([]);
   const [cardCount, setCardCount] = useState(25);
-  const [aiModel, setAiModel] = useState("gemini-1.5-flash"); 
+  const [aiModel, setAiModel] = useState("gemini-2.5-flash"); 
   const [cardStyle, setCardStyle] = useState("qa");
   const [difficulty, setDifficulty] = useState("balanced");
   const [deckName, setDeckName] = useState("MeshCards");
   const [isDragging, setIsDragging] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [dailyCount, setDailyCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (session?.user) {
+        const fetchProfile = async () => {
+            const sb = getSupabase();
+            if(!sb) return;
+            const { data } = await sb.from('profiles').select('daily_count').eq('id', session.user.id).single();
+            if(data) {
+                setDailyCount(data.daily_count);
+            }
+        };
+        fetchProfile();
+    }
+  }, [session]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -113,26 +129,9 @@ const Studio = () => {
         }
 
         // Map AI Model to provider/model
-        // Force Gemini usage for all requests as per updated logic
-        // We pretend to use others but backend only supports Gemini mostly
+        // Trust the user's selection since they provided a specific list of available models.
         let provider = "gemini";
-        let model = "gemini-1.5-flash";
-        
-        // We are "simulating" support for now or routing all to efficient gemini 
-        // while preserving the user's choice in the UI for future implementation
-        if (aiModel.startsWith("gpt") || aiModel.startsWith("claude")) {
-             // In a real scenario we'd swap providers. 
-             // For this specific 'hack', we effectively ignore and default to gemini-1.5-flash
-             // or upgrade to gemini-1.5-pro if 'gemini-3-pro' was selected (mapped below)
-        }
-        
-        if (aiModel === "gemini-3-pro" || aiModel === "gemini-2.5-flash-pro") {
-             // Map our fancy marketing names to real available models
-             model = "gemini-1.5-pro"; 
-        } else {
-             // Default fallback for everything else (including 'gpt', 'claude', 'gemini-2.5-flash')
-             model = "gemini-1.5-flash";
-        }
+        let model = aiModel; // Pass the selected model/version directly to backend
 
         payload.append("provider", provider);
         payload.append("model", model);
@@ -331,11 +330,9 @@ const Studio = () => {
                         onChange={(e) => setAiModel(e.target.value)}
                         className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-4 py-2.5 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary"
                       >
-                        <option value="gemini-3-pro">Gemini 3 Pro (Recommended)</option>
-                        <option value="gemini-2.5-flash-pro">Gemini 2.5 Flash Pro</option>
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                        <option value="gpt-4">GPT-4 </option>
-                        <option value="claude">Claude 3</option>
+                        <option value="gemini-3-pro">Gemini 3 Pro (Most Advanced)</option>
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro (Balanced)</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
                     </div>
@@ -401,10 +398,17 @@ const Studio = () => {
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-border space-y-3">
+                  {dailyCount !== null && (
+                      <div className="text-center text-sm font-medium mb-2">
+                          <span className={`${dailyCount >= 2 ? "text-red-500" : "text-primary"}`}>
+                              Daily Limit: {Math.max(0, 2 - dailyCount)} / 2 remaining
+                          </span>
+                      </div>
+                  )}
                   <Button
                     onClick={handleGenerate}
-                    disabled={isGenerating || !hasContent}
-                    className="w-full bg-foreground text-background hover:bg-foreground/90 py-3 rounded-xl font-semibold"
+                    disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= 2)}
+                    className="w-full bg-foreground text-background hover:bg-foreground/90 hover:text-background py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isGenerating ? (
                       <>

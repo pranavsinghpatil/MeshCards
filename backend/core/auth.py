@@ -58,8 +58,8 @@ def check_quota(user_id: str):
             # but here we can just check if last_reset < Today 00:00)
             # For now, let's assume the count is valid.
             
-            if count >= 3:
-                raise HTTPException(status_code=403, detail="Daily quota exceeded (3/3 decks). Please try again tomorrow.")
+            if count >= 2:
+                raise HTTPException(status_code=403, detail="Daily quota exceeded (2/2 decks). Please try again tomorrow.")
                 
     except Exception as e:
         if "quota exceeded" in str(e):

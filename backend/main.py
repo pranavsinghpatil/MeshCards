@@ -275,7 +275,10 @@ if os.path.exists(frontend_dist):
     # Explicit favicon route to prevent 404/fallback issues
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
-        return FileResponse(os.path.join(frontend_dist, "favicon.ico"))
+        return FileResponse(
+            os.path.join(frontend_dist, "favicon.ico"), 
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
 
     # 2. Catch-all route for SPA (Single Page Application)
     # This serves existing files (favicon.ico, robots.txt) or falls back to index.html
@@ -284,7 +287,12 @@ if os.path.exists(frontend_dist):
         potential_path = os.path.join(frontend_dist, full_path)
         if os.path.exists(potential_path) and os.path.isfile(potential_path):
             return FileResponse(potential_path)
-        return FileResponse(os.path.join(frontend_dist, "index.html"))
+        
+        # Disable caching for index.html so updates are seen immediately
+        return FileResponse(
+            os.path.join(frontend_dist, "index.html"), 
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
 
 else:
     logger.warning("No frontend found! Run 'npm run build' in frontend/ directory")

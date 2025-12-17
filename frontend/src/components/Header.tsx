@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Heart } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTheme, themes } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { signInWithGoogle, signOut } from "@/lib/supabase";
@@ -19,6 +19,7 @@ const Header = () => {
   const { theme, setTheme } = useTheme();
   const { session, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const handleSignIn = async () => {
     try {
@@ -30,6 +31,7 @@ const Header = () => {
 
   const handleSignOut = async () => {
       await signOut();
+      navigate("/");
   };
 
   const navLinks = [
