@@ -262,16 +262,29 @@ def download_deck(job_id: str, background_tasks: BackgroundTasks):
     )
 
 # Mount static files - MUST BE LAST
+# Mount static files - MUST BE LAST
 cwd = os.getcwd()
 frontend_dist = os.path.join(cwd, "frontend", "dist")
-frontend_legacy = os.path.join(cwd, "frontend_legacy")
 
-logger.info(f"CWD: {cwd}")
 if os.path.exists(frontend_dist):
     logger.info(f"Mounting React Frontend from {frontend_dist}")
-    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="static")
-elif os.path.exists(frontend_legacy): 
-    logger.info(f"Mounting Legacy Frontend from {frontend_legacy}")
-    app.mount("/", StaticFiles(directory=frontend_legacy, html=True), name="static")
+    
+    # 1. Mount assets explicitly so they are served correctly
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+
+    # Explicit favicon route to prevent 404/fallback issues
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        return FileResponse(os.path.join(frontend_dist, "favicon.ico"))
+
+    # 2. Catch-all route for SPA (Single Page Application)
+    # This serves existing files (favicon.ico, robots.txt) or falls back to index.html
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        potential_path = os.path.join(frontend_dist, full_path)
+        if os.path.exists(potential_path) and os.path.isfile(potential_path):
+            return FileResponse(potential_path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
+
 else:
-    logger.warning("No frontend found!")
+    logger.warning("No frontend found! Run 'npm run build' in frontend/ directory")

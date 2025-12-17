@@ -32,15 +32,21 @@ class FlashcardGenerator:
         
         **Instructions**:
         1. Extract the most important concepts, definitions, and relationships.
-        2. Create Question/Answer pairs.
-        3. Ensure the answer is concise but complete.
-        4. Add relevant tags (e.g., topic, concept type).
-        5. If a concept is visual (e.g., a diagram, chart, or physical object), provide a short, descriptive `image_prompt`.
-        6. **Advanced Formatting**:
-           - **Cloze Deletion**: If a sentence has a key term to memorize, use `{{c1::term}}` syntax and set type to "cloze". Example: "The {{c1::mitochondria}} is the powerhouse of the cell."
+        2. Create Question/Answer pairs based on the selected **Style**.
+        3. **Style Specifics**:
+           - **Question & Answer (qa)**: Standard front/back cards.
+           - **Cloze Deletion**: Use `{{c1::term}}` syntax for key terms to memorize. Set type to "cloze".
+           - **Definition**: Front is the term, Back is the definition.
+           - **True / False**: Front is a statement. Back is "True" or "False" with a brief explanation.
+           - **Multiple Choice**: Front includes the question AND options (A, B, C, D). Back is the correct option and explanation.
+           - **Scenario Based**: Front is a short real-world scenario/case followed by a question. Back is the solution.
+        4. Ensure the answer is concise but complete.
+        5. Add relevant tags (e.g., topic, concept type).
+        6. If a concept is visual (e.g., a diagram, chart, or physical object), provide a short, descriptive `image_prompt`.
+        7. **Advanced Formatting**:
            - **Math**: Use LaTeX syntax wrapped in `\( ... \)` for inline math and `\[ ... \]` for block math. IMPORTANT: You must escape backslashes in the JSON string (e.g., use `\\frac` instead of `\frac`).
            - **Code**: Use Markdown code blocks (```python ... ```) for code snippets.
-        7. Output MUST be valid JSON matching this schema:
+        8. Output MUST be valid JSON matching this schema:
         {{
             "deck_name": "{config.name}",
             "cards": [
