@@ -44,18 +44,18 @@ class LLMClient(ABC):
         pass
 
 class GeminiClient(LLMClient):
-    def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str, model_name: str = "gemini-2.5-pro"):
         genai.configure(api_key=api_key)
         
         # Map user-facing model names to actual API models
         # This prevents 404s while allowing the UI to show requested names
         model_map = {
-            "gemini-3-pro": "gemini-1.5-pro-002",
-            "gemini-2.5-pro": "gemini-1.5-pro-001",
-            "gemini-2.5-flash": "gemini-1.5-flash-001",
+            "gemini-3-pro": "gemini-3-pro-preview",
+            "gemini-2.5-pro": "gemini-2.5-pro",
+            "gemini-2.5-flash": "gemini-2.5-flash",
             # Fallbacks for direct names
-            "gemini-1.5-flash": "gemini-1.5-flash-001",
-            "gemini-1.5-pro": "gemini-1.5-pro-001"
+            "gpt-4.1": "gemini-2.5-pro",
+            "claude-opus-4.5": "gemini-2.5-pro",
         }
         
         # Use mapped model if exists, otherwise try the raw string (fallback)

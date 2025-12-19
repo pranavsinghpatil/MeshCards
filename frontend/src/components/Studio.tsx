@@ -335,6 +335,8 @@ const Studio = () => {
                         <option value="gemini-3-pro">Gemini 3 Pro (Most Advanced)</option>
                         <option value="gemini-2.5-pro">Gemini 2.5 Pro (Balanced)</option>
                         <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</option>
+                        <option value="gpt-4.1">GPT-4.1 (OpenAI)</option>
+                        <option value="claude-opus-4.5">Claude Opus 4.5 (Anthropic)</option>
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
                     </div>
