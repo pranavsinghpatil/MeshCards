@@ -184,9 +184,26 @@ const Studio = () => {
 
 
     } catch (error: any) {
+        let title = "Error";
+        let description = error.message || "Something went wrong";
+        
+        // Check for our custom formatted error from backend
+        // Format: "Error Code: {type} | Title: {context} Failed"
+        if (description.includes("| Title:")) {
+            const parts = description.split("| Title:");
+            if (parts.length === 2) {
+                // Check if the first part has "Error Code:"
+                const codePart = parts[0].split("Error Code:");
+                if (codePart.length === 2) {
+                    title = parts[1].trim();
+                    description = `Code: ${codePart[1].trim()}`;
+                }
+            }
+        }
+
         toast({
-            title: "Error",
-            description: error.message || "Something went wrong",
+            title: title,
+            description: description,
             variant: "destructive"
         });
     } finally {

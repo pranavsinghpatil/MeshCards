@@ -14,6 +14,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import urllib.request
 import json
+import traceback
 from pypdf import PdfReader
 
 from backend.core.llm import get_llm_client
@@ -65,6 +66,53 @@ def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
         
     raise ValueError(f"No API Key found for {provider}. Please provide one.")
 
+def log_error_to_github(e: Exception, context: str = ""):
+    """Logs full error details to a GitHub Issue and returns a simplified message."""
+    # 1. Capture Full Traceback and Environment
+    tb_str = traceback.format_exc()
+    error_type = type(e).__name__
+    error_msg = str(e)
+    
+    full_log = f"""**Error:** {error_type}: {error_msg}
+**Context:** {context}
+**Environment:** {settings.ENV}
+**Timestamp:** {time.ctime()}
+
+**Traceback:**
+```python
+{tb_str}
+```
+"""
+    # 2. Log locally/console
+    logger.error(f"FATAL ERROR ({context}): {error_msg}\n{tb_str}")
+    
+    # 3. Create GitHub Issue
+    if settings.GITHUB_TOKEN and settings.GITHUB_REPO:
+        try:
+            url = f"https://api.github.com/repos/{settings.GITHUB_REPO}/issues"
+            data = {
+                "title": f"Error Log: {error_type} in {context}",
+                "body": full_log,
+                "labels": ["error-log", "auto-generated"]
+            }
+            req = urllib.request.Request(
+                url, 
+                data=json.dumps(data).encode("utf-8"), 
+                headers={
+                    "Authorization": f"token {settings.GITHUB_TOKEN}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": settings.APP_NAME
+                }
+            )
+            with urllib.request.urlopen(req) as res:
+                if res.status == 201:
+                    logger.info("Error log posted to GitHub Issues")
+        except Exception as gh_e:
+            logger.error(f"Failed to log error to GitHub: {gh_e}")
+
+    # 4. Return simplified info for frontend
+    return f"Error Code: {error_type} | Title: {context} Failed"
+
 def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str, user_key: str, images_enabled: bool):
     try:
         jobs[job_id]["status"] = "processing"
@@ -115,9 +163,11 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
         logger.info(f"Job {job_id}: Completed successfully. File at {output_path}")
         
     except Exception as e:
-        logger.error(f"Job {job_id} Failed: {e}")
+        # Log full error to GitHub and get simplified message
+        simple_error = log_error_to_github(e, context=f"Job {job_id}")
+        
         jobs[job_id]["status"] = "failed"
-        jobs[job_id]["error"] = str(e)
+        jobs[job_id]["error"] = simple_error
 
 
 @app.post("/api/feedback")

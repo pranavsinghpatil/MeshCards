@@ -4,6 +4,8 @@ import os
 import re
 from typing import Dict, Any
 
+import time
+import random
 import google.generativeai as genai
 from openai import OpenAI
 from anthropic import Anthropic
@@ -66,11 +68,26 @@ class GeminiClient(LLMClient):
         self.model = genai.GenerativeModel(real_model_name)
 
     def generate_json(self, prompt: str) -> Dict[str, Any]:
-        response = self.model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        return safe_json_loads(response.text)
+        max_retries = 3
+        base_delay = 1
+        
+        for attempt in range(max_retries + 1):
+            try:
+                response = self.model.generate_content(
+                    prompt,
+                    generation_config={"response_mime_type": "application/json"}
+                )
+                return safe_json_loads(response.text)
+            except Exception as e:
+                # Check for rate limit error (ResourceExhausted is common for Gemini API)
+                error_str = str(e).lower()
+                if "429" in error_str or "resourceexhausted" in error_str or "quota" in error_str:
+                    if attempt < max_retries:
+                        sleep_time = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                        print(f"DEBUG: Rate limited. Retrying in {sleep_time:.2f}s... (Attempt {attempt+1}/{max_retries})")
+                        time.sleep(sleep_time)
+                        continue
+                raise e # Re-raise if not a rate limit error or max retries exceeded
 
 class OpenAIClient(LLMClient):
     def __init__(self, api_key: str):
