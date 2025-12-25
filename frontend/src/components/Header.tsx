@@ -16,6 +16,7 @@ import {
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { session, user } = useAuth();
   const location = useLocation();
@@ -39,11 +40,11 @@ const Header = () => {
     { name: "Studio", path: "/studio" },
     { name: "Guide", path: "/guide" },
     { name: "Feedback", path: "/feedback" },
-    { name: "Legal", path: "/legal" },
+    // { name: "Legal", path: "/legal" },
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+    <header className="relative w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -125,10 +126,10 @@ const Header = () => {
 
             {/* Theme Switcher */}
             <div className="relative group hidden sm:block">
-              <button className="btn-ghost p-2" title="Change theme">
+              <button className="btn-ghost p-2 text-muted-foreground hover:text-foreground transition-colors" title="Change theme">
                 <Palette className="w-5 h-5" />
               </button>
-              <div className="absolute right-0 top-full mt-2 bg-card border border-border rounded-lg shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 min-w-[140px]">
+              <div className="absolute right-0 top-full mt-2 bg-card border border-border rounded-lg shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] min-w-[140px]">
                 {themes.map((t) => (
                   <button
                     key={t.name}
@@ -148,18 +149,33 @@ const Header = () => {
             </div>
 
             {session ? (
-                <div className="flex items-center gap-2">
-                    <div className="hidden md:flex items-center gap-2 text-sm font-medium mr-2">
-                        <User className="w-4 h-4" />
-                        {user?.email?.split('@')[0]}
+                <div className="relative group hidden md:block">
+                    <button 
+                        className="flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-lg hover:bg-muted transition-colors border border-transparent hover:border-border/40"
+                    >
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-primary/20 to-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-sm">
+                            <User className="w-4 h-4" />
+                        </div>
+                        <span className="max-w-[100px] truncate">{user?.email?.split('@')[0]}</span>
+                    </button>
+
+                    {/* User Dropdown (Hover) */}
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl p-1 z-[100] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right transform">
+                        <div className="px-3 py-2.5 border-b border-border/50 mb-1 bg-muted/30 rounded-t-lg">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-0.5">Signed in as</p>
+                            <p className="text-sm font-bold truncate text-foreground">{user?.email}</p>
+                        </div>
+                        <button 
+                            onClick={handleSignOut}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                        >
+                            <LogOut className="w-4 h-4" />
+                            Sign Out
+                        </button>
                     </div>
-                     <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
-                        <LogOut className="w-4 h-4" />
-                        Sign Out
-                    </Button>
                 </div>
             ) : (
-                <Button variant="default" size="sm" onClick={handleSignIn} className="gap-2">
+                <Button variant="default" size="sm" onClick={handleSignIn} className="gap-2 font-bold shadow-md hover:shadow-lg transition-all">
                     <LogIn className="w-4 h-4" />
                     Sign In
                 </Button>

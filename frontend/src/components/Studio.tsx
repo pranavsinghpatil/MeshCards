@@ -29,7 +29,7 @@ const LoadingOverlay = () => {
     }, []);
 
     return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-500 rounded-2xl">
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px] animate-in fade-in duration-500 rounded-2xl select-none">
             <div className="relative mb-8">
                 {/* Glowing Mesh Effect */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-primary to-purple-500 blur-2xl opacity-40 animate-pulse rounded-full" />
@@ -73,10 +73,11 @@ const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId:
 
             <div className="p-6">
                 <div className="grid md:grid-cols-2 gap-4 mb-6">
-                     {/* Primary Action: Download Again */}
+                     {/* Primary Action: Download Again (now Outline style) */}
                     <Button
+                        variant="outline"
                         size="lg"
-                        className="w-full h-12 text-lg font-bold border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-none transition-all"
+                        className="w-full h-12 text-lg font-bold border-2 border-foreground/20 hover:border-foreground/50 hover:bg-muted hover:text-foreground"
                         onClick={() => {
                             if (jobId) {
                                 const link = document.createElement('a');
@@ -91,15 +92,14 @@ const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId:
                         Download Again
                     </Button>
 
-                     {/* Secondary Action: Generate Another */}
+                     {/* Secondary Action: Generate Another (now Primary/Shadow style) */}
                     <Button
-                        variant="outline"
                         size="lg"
-                        className="w-full h-12 text-lg font-bold border-2 border-foreground/20 hover:border-foreground/50 hover:bg-muted hover:text-foreground"
+                        className="w-full h-12 text-lg font-bold border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-none transition-all"
                         onClick={onReset}
                     >
+                         <Sparkles className="mr-2 h-4 w-4" />
                         Generate Another
-                        <Sparkles className="ml-2 h-4 w-4" />
                     </Button>
                 </div>
 
@@ -129,11 +129,14 @@ const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId:
                     Sponsor Project
                  </button>
                  <button 
-                    className="flex items-center justify-center gap-2 text-xs font-bold text-primary animate-pulse hover:text-primary/80 py-1 transition-colors"
+                    className="group flex items-center justify-center gap-2 text-xs font-bold text-primary hover:text-primary/80 py-1 transition-colors"
                     onClick={() => window.open('/feedback', '_blank')}
                  >
-                    <Settings className="w-3 h-3" />
-                    Give Feedback
+                    <Settings className="w-3 h-3 group-hover:rotate-45 transition-transform duration-500" />
+                    <span className="relative">
+                        Give Feedback
+                        <span className="absolute -bottom-0.5 left-0 w-full h-[1px] bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+                    </span>
                  </button>
             </div>
         </div>
