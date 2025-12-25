@@ -25,7 +25,7 @@ class FlashcardGenerator:
         **Configuration**:
         - Difficulty: {config.difficulty}
         - Style: {config.style}
-        - Max Cards: {config.max_cards}
+        - Max Cards: {config.max_cards} (You MUST attempt to generate close to this number, at least {int(config.max_cards * 0.8)})
         
         **Custom Context/Instructions**:
         {config.custom_instructions or "None"}

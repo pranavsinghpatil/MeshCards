@@ -176,11 +176,18 @@ const Studio = () => {
         downloadLink.click();
         document.body.removeChild(downloadLink);
         
-         setGeneratedCards([{
-            id: 'success',
-            front: 'Deck Generated Successfully!',
-            back: 'Check your downloads folder for the .apkg file. Import it into Anki to study.'
-        }]);
+         setGeneratedCards([
+        {
+            id: 'ad-block',
+            front: 'Deck Generated Successfully! 🎉',
+            back: 'Double-click the downloaded .apkg file to import it into Anki.\n\nNot affiliated with Anki (Ankitects Pty Ltd). MeshCards is an independent study tool.'
+        },
+        {
+             id: 'guide-block',
+             front: 'How to use?',
+             back: '1. Open Anki (Desktop or Mobile).\n2. Import the file.\n3. Start studying with Spaced Repetition!'
+        }
+        ]);
 
 
     } catch (error: any) {
