@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import StudioPage from "./pages/StudioPage";
 import FeedbackPage from "./pages/FeedbackPage";
+import GuidePage from "./pages/GuidePage";
 import LegalPage from "./pages/LegalPage";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
@@ -34,6 +35,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/studio" element={<StudioPage />} />
                 <Route path="/feedback" element={<FeedbackPage />} />
+                <Route path="/guide" element={<GuidePage />} />
                 <Route path="/legal" element={<LegalPage />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>

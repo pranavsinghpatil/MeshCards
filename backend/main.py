@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTa
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import shutil
 import os
 import tempfile
@@ -226,7 +226,7 @@ def get_config():
 async def submit_job(
     request: Request,
     background_tasks: BackgroundTasks,
-    file: Optional[UploadFile] = File(None),
+    files: List[UploadFile] = File(None),
     text: Optional[str] = Form(None),
     provider: str = Form("gemini"),
     model: Optional[str] = Form(None),
@@ -253,31 +253,41 @@ async def submit_job(
         # But per requirements we enforce 3 decks.
         raise e
 
-    if not file and not text:
+    if not files and not text:
         raise HTTPException(status_code=400, detail="Either file or text must be provided")
 
     # Read Input
     input_text = ""
     try:
         if text:
-            input_text = text
-        elif file:
-            suffix = os.path.splitext(file.filename)[1]
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-                shutil.copyfileobj(file.file, tmp_file)
-                tmp_path = tmp_file.name
-            
-            if suffix.lower() == ".pdf":
-                 reader = PdfReader(tmp_path)
-                 for page in reader.pages:
-                     extract = page.extract_text()
-                     if extract:
-                        input_text += extract + "\n"
-            else:
-                with open(tmp_path, "r", encoding="utf-8") as f:
-                    input_text = f.read()
-            
-            cleanup_file(tmp_path)
+            input_text = text + "\n\n"
+        
+        if files:
+            for file in files:
+                suffix = os.path.splitext(file.filename)[1]
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+                    shutil.copyfileobj(file.file, tmp_file)
+                    tmp_path = tmp_file.name
+                
+                file_text = ""
+                if suffix.lower() == ".pdf":
+                     reader = PdfReader(tmp_path)
+                     for page in reader.pages:
+                         extract = page.extract_text()
+                         if extract:
+                            file_text += extract + "\n"
+                else:
+                    try:
+                        with open(tmp_path, "r", encoding="utf-8") as f:
+                            file_text = f.read()
+                    except:
+                         # Fallback for docx or other binary formats if added later, 
+                         # or encoding issues. For now, strict utf-8 for txt
+                         pass
+
+                input_text += f"\n--- File: {file.filename} ---\n{file_text}\n"
+                cleanup_file(tmp_path)
+
     except Exception as e:
         logger.error(f"Input reading failed: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to read input: {str(e)}")
@@ -340,12 +350,12 @@ def download_deck(job_id: str, background_tasks: BackgroundTasks):
     file_path = job["file_path"]
     filename = job["filename"]
     
-    # Schedule cleanup after response
-    background_tasks.add_task(cleanup_file, file_path)
+    # Schedule cleanup after response - DISABLED for "Download Again" feature
+    # background_tasks.add_task(cleanup_file, file_path)
     
-    # Also clean up job from memory to prevent leak
-    if job_id in jobs:
-        del jobs[job_id]
+    # Job cleanup is handled manually or by timeout, NOT on first download
+    # if job_id in jobs:
+    #     del jobs[job_id]
     
     logger.info(f"Serving download for Job {job_id}")
     return FileResponse(

@@ -42,7 +42,8 @@ def safe_json_loads(text: str) -> Dict[str, Any]:
 
 class LLMClient(ABC):
     @abstractmethod
-    def generate_json(self, prompt: str) -> Dict[str, Any]:
+    @abstractmethod
+    def generate_json(self, prompt: Any) -> Dict[str, Any]:
         pass
 
 class GeminiClient(LLMClient):
@@ -67,14 +68,37 @@ class GeminiClient(LLMClient):
 
         self.model = genai.GenerativeModel(real_model_name)
 
-    def generate_json(self, prompt: str) -> Dict[str, Any]:
+    def generate_json(self, prompt: Any) -> Dict[str, Any]:
         max_retries = 3
         base_delay = 1
         
+        # Prepare content for Gemini
+        # If prompt is a string, it's just text.
+        # If prompt is a list, it might contain text strings or image paths/dicts.
+        content_parts = []
+        if isinstance(prompt, str):
+            content_parts.append(prompt)
+        elif isinstance(prompt, list):
+            for part in prompt:
+                if isinstance(part, str):
+                    content_parts.append(part)
+                elif isinstance(part, dict) and part.get("type") == "image":
+                    # Load image using PIL
+                    try:
+                        import PIL.Image
+                        img = PIL.Image.open(part["path"])
+                        content_parts.append(img)
+                    except Exception as e:
+                        print(f"Error loading image {part['path']}: {e}")
+                else:
+                    # Fallback for unknown
+                    content_parts.append(str(part))
+        
         for attempt in range(max_retries + 1):
             try:
+                # Gemini generate_content accepts a list of parts (str or PIL.Image)
                 response = self.model.generate_content(
-                    prompt,
+                    content_parts,
                     generation_config={"response_mime_type": "application/json"}
                 )
                 return safe_json_loads(response.text)
