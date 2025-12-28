@@ -419,7 +419,7 @@ const Studio = () => {
 
                     <div className="flex items-center gap-3 mb-4">
                     <div className="flex-1 h-px bg-border" />
-                    <span className="text-xs font-medium text-muted-foreground px-2">OR Paste Text</span>
+                    <span className="text-xs font-medium text-muted-foreground px-2">Prompt</span>
                     <div className="flex-1 h-px bg-border" />
                     </div>
 
