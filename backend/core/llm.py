@@ -9,7 +9,6 @@ import random
 import google.generativeai as genai
 from openai import OpenAI
 from anthropic import Anthropic
-import ollama
 
 def safe_json_loads(text: str) -> Dict[str, Any]:
     try:
@@ -146,19 +145,19 @@ class AnthropicClient(LLMClient):
         except json.JSONDecodeError:
              raise ValueError(f"Failed to parse JSON from Anthropic response: {content[:100]}...")
 
-class OllamaClient(LLMClient):
-    def __init__(self, model_name: str = "llama3"):
-        self.model_name = model_name
-
-    def generate_json(self, prompt: str) -> Dict[str, Any]:
-        response = ollama.chat(model=self.model_name, messages=[
-          {
-            'role': 'user',
-            'content': prompt,
-          },
-        ], format='json')
-        return safe_json_loads(response['message']['content'])
-
+# class OllamaClient(LLMClient):
+#     def __init__(self, model_name: str = "llama3"):
+#         self.model_name = model_name
+# 
+#     def generate_json(self, prompt: str) -> Dict[str, Any]:
+#         response = ollama.chat(model=self.model_name, messages=[
+#           {
+#             'role': 'user',
+#             'content': prompt,
+#           },
+#         ], format='json')
+#         return safe_json_loads(response['message']['content'])
+# 
 def get_llm_client(provider: str, api_key: str = None, model_name: str = None) -> LLMClient:
     provider = provider.lower()
     if provider == "gemini":
@@ -167,7 +166,7 @@ def get_llm_client(provider: str, api_key: str = None, model_name: str = None) -
         return OpenAIClient(api_key)
     elif provider == "anthropic":
         return AnthropicClient(api_key)
-    elif provider == "ollama":
-        return OllamaClient(model_name or "llama3")
+#     elif provider == "ollama":
+#         return OllamaClient(model_name or "llama3")
     else:
         raise ValueError(f"Unsupported provider: {provider}")
