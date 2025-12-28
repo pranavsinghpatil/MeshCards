@@ -350,21 +350,6 @@ const Studio = () => {
             </p>
           </div>
 
-          <div className="flex justify-end mb-2 gap-2">
-               <button 
-                  onClick={() => setIsGenerating(!isGenerating)} 
-                  className="text-[10px] text-muted-foreground opacity-20 hover:opacity-100"
-               >
-                  [Debug: Toggle Loading]
-               </button>
-               <button 
-                  onClick={() => setGenerationSuccess(!generationSuccess)} 
-                  className="text-[10px] text-muted-foreground opacity-20 hover:opacity-100"
-               >
-                  [Debug: Toggle Success]
-               </button>
-          </div>
-
           {generationSuccess ? (
              <SuccessView jobId={lastJobId} onReset={clearAll} deckName={deckName || "Generated Deck"} />
           ) : (

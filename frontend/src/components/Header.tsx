@@ -129,7 +129,7 @@ const Header = () => {
               <button className="btn-ghost p-2 text-muted-foreground hover:text-foreground transition-colors" title="Change theme">
                 <Palette className="w-5 h-5" />
               </button>
-              <div className="absolute right-0 top-full mt-2 bg-card border border-border rounded-lg shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[100] min-w-[140px]">
+              <div className="absolute right-0 top-full mt-2 bg-card border border-border rounded-lg shadow-lg p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[9999] min-w-[140px]">
                 {themes.map((t) => (
                   <button
                     key={t.name}
@@ -160,7 +160,7 @@ const Header = () => {
                     </button>
 
                     {/* User Dropdown (Hover) */}
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl p-1 z-[100] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right transform">
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl p-1 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right transform">
                         <div className="px-3 py-2.5 border-b border-border/50 mb-1 bg-muted/30 rounded-t-lg">
                             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-0.5">Signed in as</p>
                             <p className="text-sm font-bold truncate text-foreground">{user?.email}</p>
