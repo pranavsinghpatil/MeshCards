@@ -113,7 +113,7 @@ def log_error_to_github(e: Exception, context: str = ""):
     # 4. Return simplified info for frontend
     return f"Error Code: {error_type} | Title: {context} Failed"
 
-def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str, user_key: str, images_enabled: bool):
+def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str, user_key: str, images_enabled: bool, user_id: str = None):
     try:
         jobs[job_id]["status"] = "processing"
         
@@ -161,6 +161,11 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
         jobs[job_id]["file_path"] = output_path
         jobs[job_id]["filename"] = output_filename
         logger.info(f"Job {job_id}: Completed successfully. File at {output_path}")
+        
+        # 5. Increment quota ONLY after successful generation
+        if user_id:
+            increment_quota(user_id)
+            logger.info(f"Job {job_id}: Incremented quota for user {user_id}")
         
     except Exception as e:
         # Log full error to GitHub and get simplified message
@@ -244,13 +249,11 @@ async def submit_job(
         user = await get_current_user(authorization)
         if user:
             check_quota(user.id)
-            increment_quota(user.id)
+            # Don't increment here - only increment after successful generation
         else:
             raise HTTPException(status_code=401, detail="Please Sign In to generate flashcards.")
     except Exception as e:
         logger.error(f"Auth error: {e}")
-        # If running locally without supabase keys, user might get stuck.
-        # But per requirements we enforce 3 decks.
         raise e
 
     if not files and not text:
@@ -321,7 +324,8 @@ async def submit_job(
         config_data, 
         provider, 
         api_key, 
-        images
+        images,
+        user.id  # Pass user_id for quota increment after success
     )
     
     return {"job_id": job_id, "status": "pending"}

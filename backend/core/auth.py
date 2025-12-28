@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, Header
 from typing import Optional
 from backend.core.supabase import get_supabase
+from datetime import datetime, timezone
 
 async def get_current_user(authorization: Optional[str] = Header(None)):
     """
@@ -34,50 +35,83 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
 def check_quota(user_id: str):
     """
     Checks if the user has remaining quota for the day.
+    Automatically resets quota if it's a new day.
     """
     supabase = get_supabase()
     if not supabase:
-        return True # Fail open if DB down? Or fail closed? content: Fail open for now.
+        # If Supabase is not configured, fail closed (deny access)
+        raise HTTPException(status_code=503, detail="Quota system unavailable. Please contact support.")
 
-    # 1. Get Profile
-    # Check if we need to reset daily count (new day?)
-    # For simplicity, we can trust the 'last_reset' logic in DB triggers or do it here.
-    # Let's do a simple check.
-    
     try:
         res = supabase.table('profiles').select('*').eq('id', user_id).execute()
         
-        # If profile doesn't exist (maybe trigger failed), create it?
-        # The Trigger should handle it.
+        if not res.data:
+            # Profile doesn't exist, create it
+            today = datetime.now(timezone.utc).date().isoformat()
+            supabase.table('profiles').insert({
+                'id': user_id,
+                'daily_count': 0,
+                'last_reset': today
+            }).execute()
+            return  # New user, quota is 0, allow generation
         
-        if res.data:
-            profile = res.data[0]
-            count = profile.get('daily_count', 0)
-            
-            # Simple Reset Logic: if last_reset is not Today, reset (Handled better by a nightly func, 
-            # but here we can just check if last_reset < Today 00:00)
-            # For now, let's assume the count is valid.
-            
-            if count >= 2:
-                raise HTTPException(status_code=403, detail="Daily quota exceeded (2/2 decks). Please try again tomorrow.")
+        profile = res.data[0]
+        count = profile.get('daily_count', 0)
+        last_reset = profile.get('last_reset', '')
+        
+        # Check if we need to reset (new day)
+        today = datetime.now(timezone.utc).date().isoformat()
+        
+        if last_reset != today:
+            # Reset the quota for the new day
+            supabase.table('profiles').update({
+                'daily_count': 0,
+                'last_reset': today
+            }).eq('id', user_id).execute()
+            return  # Quota reset, allow generation
+        
+        # Check if quota exceeded
+        if count >= 2:
+            raise HTTPException(
+                status_code=429, 
+                detail=f"Daily quota exceeded ({count}/2 decks). Please try again tomorrow."
+            )
                 
+    except HTTPException:
+        raise
     except Exception as e:
-        if "quota exceeded" in str(e):
-            raise e
-        # Log error but maybe allow if it's a system error? No, safer to fail.
-        # raise HTTPException(status_code=500, detail=f"Quota check failed: {e}")
-        pass # Pass for now if table missing to avoid blocking dev
+        # Log error and fail closed for security
+        raise HTTPException(status_code=500, detail=f"Quota check failed: {str(e)}")
 
 def increment_quota(user_id: str):
+    """
+    Increments the user's daily quota count.
+    Should only be called AFTER successful deck generation.
+    """
     supabase = get_supabase()
-    if not supabase: return
+    if not supabase: 
+        return
 
     try:
-        # increment logic
-        # rpc call is safer, or just get + update
-        res = supabase.table('profiles').select('daily_count').eq('id', user_id).execute()
+        # Use atomic increment with RPC or get current + update
+        res = supabase.table('profiles').select('daily_count, last_reset').eq('id', user_id).execute()
+        
         if res.data:
-            current = res.data[0]['daily_count']
-            supabase.table('profiles').update({'daily_count': current + 1}).eq('id', user_id).execute()
+            current = res.data[0].get('daily_count', 0)
+            today = datetime.now(timezone.utc).date().isoformat()
+            
+            # Double-check date hasn't changed during generation
+            if res.data[0].get('last_reset') != today:
+                # Reset happened during generation, start from 1
+                supabase.table('profiles').update({
+                    'daily_count': 1,
+                    'last_reset': today
+                }).eq('id', user_id).execute()
+            else:
+                # Normal increment
+                supabase.table('profiles').update({
+                    'daily_count': current + 1
+                }).eq('id', user_id).execute()
     except Exception as e:
-        pass
+        # Log but don't fail the request since deck was already generated
+        print(f"Warning: Failed to increment quota for user {user_id}: {e}")
