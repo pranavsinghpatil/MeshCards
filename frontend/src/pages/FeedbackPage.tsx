@@ -187,17 +187,27 @@ export default function FeedbackPage() {
                 {/* Dev Message */}
                 <div className="bg-muted/30 rounded-2xl border-2 border-border p-6 border-dashed">
                   <h3 className="font-bold text-lg mb-3">From the Developer</h3>
+                  <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                    Hi! I built MeshCards to help students study more effectively. This project is a labor of love, and I'm working on it in my spare time.
+                  </p>
                   <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                    Hi! I built MeshCards to help students study more effectively. This project is a labor of love, 
-                    and I'm working on it in my spare time.
+                    Your feedback and support mean everything.
                   </p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Your feedback and support mean everything. Together, we can make this the best flashcard 
-                    generator out there.
-                  </p>
-                  {/* <div className="mt-4 pt-4"> */}
-                    {/* <p className="text-sm font-bold text-primary">— The MeshCards Team</p> */}
-                  {/* </div> */}
+                  <div className="pt-3 border-t border-border/50">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Use the form above, or{' '}
+                      <a 
+                        href="mailto:talktopranav@cc.cc" 
+                        className="text-primary hover:text-primary/80 underline font-semibold"
+                      >
+                        Email me 
+                      </a>
+                      {' '}directly.
+                    </p>
+                    <p className="text-sm font-semibold text-foreground">
+                      💌 I love to hear from you and I read every message!
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
