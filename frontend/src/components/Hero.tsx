@@ -23,11 +23,11 @@ const Hero = () => {
   return (
     <div className="pt-0">
       {/* Hero Section - Neutral/Theme-aware background */}
-      <section className="min-h-[70vh] relative overflow-hidden bg-gradient-to-b from-background via-muted/30 to-background">
+      <section className="min-h-[70vh] relative overflow-visible bg-gradient-to-b from-background via-muted/30 to-background">
         <div className="container py-16 md:py-24">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left: Text Content */}
-            <div className="relative z-10">
+            <div className="relative z-0">
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-[1.1] text-foreground">
                 Turn Anything into
                 <br />
@@ -50,13 +50,11 @@ const Hero = () => {
                 >
                   {session ? "Create new Deck" : "Get Started Free"}
                 </Button>
-                {!session && (
-                  <a href="#features">
-                    <Button variant="ghost" className="text-foreground hover:bg-muted/50 px-6 py-6 rounded-xl font-medium">
-                      See how it works <ArrowRight className="ml-2 w-5 h-5" />
-                    </Button>
-                  </a>
-                )}
+                <Link to="/guide">
+                  <Button variant="ghost" className="text-foreground hover:text-foreground hover:bg-muted/50 px-6 py-6 rounded-xl font-medium">
+                    Import guide <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
               </div>
             </div>
 

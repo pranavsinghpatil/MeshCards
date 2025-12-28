@@ -44,7 +44,7 @@ const Header = () => {
   ];
 
   return (
-    <header className="relative w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="relative w-full z-[9999] border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -156,11 +156,13 @@ const Header = () => {
                         <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-primary/20 to-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-sm">
                             <User className="w-4 h-4" />
                         </div>
-                        <span className="max-w-[100px] truncate">{user?.email?.split('@')[0]}</span>
+                        <span className="max-w-[100px] truncate">
+                            {user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0]}
+                        </span>
                     </button>
 
                     {/* User Dropdown (Hover) */}
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl p-1 z-[9999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right transform">
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl p-1 z-[99999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right">
                         <div className="px-3 py-2.5 border-b border-border/50 mb-1 bg-muted/30 rounded-t-lg">
                             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-0.5">Signed in as</p>
                             <p className="text-sm font-bold truncate text-foreground">{user?.email}</p>

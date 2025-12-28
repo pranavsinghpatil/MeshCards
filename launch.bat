@@ -34,3 +34,5 @@ start /b cmd /c "timeout /t 5 /nobreak >nul && start http://localhost:8000"
 
 :: Start Uvicorn
 python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+
+:: if (Test-Path frontend/dist) { Remove-Item -Recurse -Force frontend/dist }; cd frontend; npm run build; cd ..
