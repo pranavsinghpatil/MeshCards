@@ -194,7 +194,7 @@ export default function MaintenancePage() {
 
         {/* Bottom Text */}
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Last updated: {new Date().toLocaleString('en-IN')} IST
+          Last updated: 31/12/2025, 1:02:38 am IST
         </p>
       </div>
     </div>
