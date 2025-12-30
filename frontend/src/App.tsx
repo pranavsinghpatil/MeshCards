@@ -11,6 +11,7 @@ import StudioPage from "./pages/StudioPage";
 import FeedbackPage from "./pages/FeedbackPage";
 import GuidePage from "./pages/GuidePage";
 import LegalPage from "./pages/LegalPage";
+import MaintenancePage from "./pages/MaintenancePage";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 
@@ -23,29 +24,45 @@ const AuthRedirect = () => {
     return null;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AuthProvider>
-            <BrowserRouter>
-            <ScrollToTop />
-            <AuthRedirect />
-            <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/studio" element={<StudioPage />} />
-                <Route path="/feedback" element={<FeedbackPage />} />
-                <Route path="/guide" element={<GuidePage />} />
-                <Route path="/legal" element={<LegalPage />} />
-                <Route path="*" element={<NotFound />} />
-            </Routes>
-            </BrowserRouter>
-        </AuthProvider>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Check if maintenance mode is enabled
+  const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+
+  // If maintenance mode is on, show maintenance page
+  if (isMaintenanceMode) {
+    return (
+      <ThemeProvider>
+        <MaintenancePage />
+      </ThemeProvider>
+    );
+  }
+
+  // Normal app
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AuthProvider>
+              <BrowserRouter>
+              <ScrollToTop />
+              <AuthRedirect />
+              <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/studio" element={<StudioPage />} />
+                  <Route path="/feedback" element={<FeedbackPage />} />
+                  <Route path="/guide" element={<GuidePage />} />
+                  <Route path="/legal" element={<LegalPage />} />
+                  <Route path="*" element={<NotFound />} />
+              </Routes>
+              </BrowserRouter>
+          </AuthProvider>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
+
