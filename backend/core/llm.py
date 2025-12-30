@@ -17,22 +17,55 @@ def safe_json_loads(text: str) -> Dict[str, Any]:
         # Attempt to fix common JSON errors
         print(f"DEBUG: JSON parse failed ({e}), attempting repair...")
         
-        # 1. Fix invalid escape sequences (e.g., \frac -> \\frac)
-        # This regex looks for a backslash that is NOT followed by a valid escape char (", \, /, b, f, n, r, t, u)
-        # and replaces it with a double backslash.
-        fixed_text = re.sub(r'\\(?![\\/bfnrtu"])', r'\\\\', text)
+        # Strategy 1: Fix invalid escape sequences
+        # Replace backslashes that aren't part of valid JSON escape sequences
+        fixed_text = text
+        
+        # First, protect valid escape sequences by temporarily replacing them
+        replacements = {
+            '\\"': '___QUOTE___',
+            '\\\\': '___BACKSLASH___',
+            '\\/': '___SLASH___',
+            '\\b': '___BACKSPACE___',
+            '\\f': '___FORMFEED___',
+            '\\n': '___NEWLINE___',
+            '\\r': '___RETURN___',
+            '\\t': '___TAB___',
+        }
+        
+        for old, new in replacements.items():
+            fixed_text = fixed_text.replace(old, new)
+        
+        # Now replace any remaining backslashes with double backslashes
+        fixed_text = fixed_text.replace('\\', '\\\\')
+        
+        # Restore the valid escape sequences
+        for old, new in replacements.items():
+            fixed_text = fixed_text.replace(new, old)
         
         try:
             return json.loads(fixed_text)
         except json.JSONDecodeError:
-            # 2. If that failed, try a more aggressive fix for LaTeX specifically
-            # Replace all single backslashes with double, except for already escaped ones?
-            # This is hard to do perfectly with regex. 
-            # Let's try to extract the JSON block if it's wrapped in markdown code blocks
+            # Strategy 2: Extract JSON from markdown code blocks
             match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
             if match:
                 try:
                     return json.loads(match.group(1))
+                except:
+                    pass
+            
+            # Strategy 3: Try to find the JSON object directly
+            match = re.search(r'\{.*\}', text, re.DOTALL)
+            if match:
+                try:
+                    json_text = match.group(0)
+                    # Apply the same escape fix
+                    for old, new in replacements.items():
+                        json_text = json_text.replace(old, new)
+                    json_text = json_text.replace('\\', '\\\\')
+                    for old, new in replacements.items():
+                        json_text = json_text.replace(new, old)
+                    return json.loads(json_text)
                 except:
                     pass
             

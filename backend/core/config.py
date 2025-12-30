@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_FREE: str = "5/hour"
+    RATE_LIMIT_FREE: str = "2/hour"  # Reduced from 5/hour to prevent API abuse
     
     # Features
     ENABLE_OLLAMA: bool = True

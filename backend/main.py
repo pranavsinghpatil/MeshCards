@@ -28,6 +28,7 @@ from backend.core.images import get_image_generator
 from backend.core.config import settings
 from backend.core.logging import logger
 from backend.core.auth import get_current_user, check_quota, increment_quota
+from backend.core.error_reporter import report_error
 from backend.core.storage import get_deck_storage
 
 # Setup Rate Limiting
@@ -68,51 +69,30 @@ def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
         
     raise ValueError(f"No API Key found for {provider}. Please provide one.")
 
-def log_error_to_github(e: Exception, context: str = ""):
-    """Logs full error details to a GitHub Issue and returns a simplified message."""
-    # 1. Capture Full Traceback and Environment
+def log_error_to_github(e: Exception, context: str = "", user_id: str = None, request_data: dict = None):
+    """
+    Logs full error details to a GitHub Issue and returns a simplified message.
+    Now uses the enhanced error_reporter module with sanitization and better formatting.
+    """
+    # 1. Log locally/console
     tb_str = traceback.format_exc()
     error_type = type(e).__name__
     error_msg = str(e)
-    
-    full_log = f"""**Error:** {error_type}: {error_msg}
-**Context:** {context}
-**Environment:** {settings.ENV}
-**Timestamp:** {time.ctime()}
-
-**Traceback:**
-```python
-{tb_str}
-```
-"""
-    # 2. Log locally/console
     logger.error(f"FATAL ERROR ({context}): {error_msg}\n{tb_str}")
     
-    # 3. Create GitHub Issue
-    if settings.GITHUB_TOKEN and settings.GITHUB_REPO:
-        try:
-            url = f"https://api.github.com/repos/{settings.GITHUB_REPO}/issues"
-            data = {
-                "title": f"Error Log: {error_type} in {context}",
-                "body": full_log,
-                "labels": ["error-log", "auto-generated"]
-            }
-            req = urllib.request.Request(
-                url, 
-                data=json.dumps(data).encode("utf-8"), 
-                headers={
-                    "Authorization": f"token {settings.GITHUB_TOKEN}",
-                    "Accept": "application/vnd.github.v3+json",
-                    "User-Agent": settings.APP_NAME
-                }
-            )
-            with urllib.request.urlopen(req) as res:
-                if res.status == 201:
-                    logger.info("Error log posted to GitHub Issues")
-        except Exception as gh_e:
-            logger.error(f"Failed to log error to GitHub: {gh_e}")
-
-    # 4. Return simplified info for frontend
+    # 2. Use enhanced error reporter to create GitHub issue
+    try:
+        report_error(
+            error=e,
+            context=context,
+            user_id=user_id,
+            request_data=request_data,
+            severity="critical" if "critical" in context.lower() else "error"
+        )
+    except Exception as report_err:
+        logger.error(f"Error reporter failed: {report_err}")
+    
+    # 3. Return simplified info for frontend
     return f"Error Code: {error_type} | Title: {context} Failed"
 
 def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str, user_key: str, images_enabled: bool, user_id: str = None, image_files: list = None):
@@ -204,8 +184,12 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
                     logger.warning(f"Failed to cleanup image file: {e}")
         
     except Exception as e:
-        # Log full error to GitHub and get simplified message
-        simple_error = log_error_to_github(e, context=f"Job {job_id}")
+        # Log full error to GitHub with user context
+        simple_error = log_error_to_github(
+            e, 
+            context=f"Deck Generation (Job {job_id})", 
+            user_id=user_id
+        )
         
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = simple_error
@@ -316,17 +300,26 @@ async def submit_job(
     custom_instructions: Optional[str] = Form(None),
     authorization: Optional[str] = Header(None)
 ):
-    # 1. Auth & Quota Check
+    # 1. STRICT AUTH REQUIREMENT - Only signed-in users can generate
+    user = await get_current_user(authorization)
+    if not user:
+        raise HTTPException(
+            status_code=401, 
+            detail="Authentication required. Please sign in to generate flashcards."
+        )
+    
+    # 2. Check Daily Quota (2 decks per day, resets at 12 AM IST)
     try:
-        user = await get_current_user(authorization)
-        if user:
-            check_quota(user.id)
-            # Don't increment here - only increment after successful generation
-        else:
-            raise HTTPException(status_code=401, detail="Please Sign In to generate flashcards.")
-    except Exception as e:
-        logger.error(f"Auth error: {e}")
+        check_quota(user.id)
+    except HTTPException as e:
+        # Re-raise quota exceeded errors with clear message
         raise e
+    except Exception as e:
+        logger.error(f"Quota check error for user {user.id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to verify quota. Please try again later."
+        )
 
     if not files and not text:
         raise HTTPException(status_code=400, detail="Either file or text must be provided")
