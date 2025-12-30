@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Header from '@/components/Header';
 import { getApiUrl } from "@/lib/api";
-import { MessageSquare, Heart, Send, Coffee, Star, Bug, Lightbulb, CheckCircle } from 'lucide-react';
+import { MessageSquare, Heart, Send, Coffee, Star, Bug, Lightbulb, CheckCircle, Paperclip, X } from 'lucide-react';
 import SimpleFooter from '@/components/SimpleFooter';
 
 type FeedbackType = 'suggestion' | 'bug' | 'praise' | 'other';
@@ -11,15 +11,22 @@ export default function FeedbackPage() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [rating, setRating] = useState(0);
+  const [file, setFile] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+        const formData = new FormData();
+        formData.append('type', type);
+        formData.append('message', message);
+        formData.append('rating', rating.toString());
+        if (email) formData.append('email', email);
+        if (file) formData.append('file', file);
+
         await fetch(getApiUrl('/api/feedback'), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type, email, message, rating })
+            body: formData // Don't set Content-Type, browser will set it with boundary
         });
         setSubmitted(true);
     } catch (error) {
@@ -144,7 +151,7 @@ export default function FeedbackPage() {
                   </div>
 
                   {/* Message */}
-                  <div className="mb-8">
+                  <div className="mb-6">
                     <label className="text-sm font-bold mb-2 block">Your Message</label>
                     <textarea
                       value={message}
@@ -153,6 +160,60 @@ export default function FeedbackPage() {
                       className="w-full h-32 resize-none rounded-xl border-2 border-border bg-background p-4 text-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
                       required
                     />
+                  </div>
+
+                  {/* File Upload */}
+                  <div className="mb-8">
+                    <label className="text-sm font-bold mb-2 block">
+                      Attachment <span className="text-muted-foreground font-normal">(optional)</span>
+                    </label>
+                    
+                    {!file ? (
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/50 transition-all bg-muted/20 hover:bg-muted/40">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
+                          <p className="mb-1 text-sm text-muted-foreground">
+                            <span className="font-semibold">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            PNG, JPG, PDF up to 10MB
+                          </p>
+                        </div>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={(e) => {
+                            const selectedFile = e.target.files?.[0];
+                            if (selectedFile && selectedFile.size <= 10 * 1024 * 1024) {
+                              setFile(selectedFile);
+                            } else if (selectedFile) {
+                              alert('File size must be less than 10MB');
+                            }
+                          }}
+                        />
+                      </label>
+                    ) : (
+                      <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-muted/20">
+                        <Paperclip className="w-5 h-5 text-primary" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFile(null)}
+                          className="p-1 hover:bg-destructive/10 rounded-lg transition-colors"
+                        >
+                          <X className="w-5 h-5 text-destructive" />
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Attach screenshots or files to help us understand your feedback better
+                    </p>
                   </div>
 
                   <button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98]">

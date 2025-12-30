@@ -3,6 +3,7 @@ from typing import Optional
 from backend.core.supabase import get_supabase
 from backend.core.logging import logger
 from datetime import datetime, timezone
+import os
 
 async def get_current_user(authorization: Optional[str] = Header(None)):
     """
@@ -36,24 +37,38 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
 def check_quota(user_id: str):
     """
     Checks if the user has remaining quota for the day.
-    Automatically resets quota if it's a new day.
+    Automatically resets quota if it's a new day (12 AM IST).
     """
+    from datetime import datetime, timezone, timedelta
+    
+    # Define IST timezone (UTC+5:30)
+    IST = timezone(timedelta(hours=5, minutes=30))
+    
     supabase = get_supabase()
     if not supabase:
-        # If Supabase is not configured, allow access (development mode)
-        logger.warning("Quota check skipped - Supabase not configured")
+        # In production, quota check is REQUIRED
+        if os.getenv("ENV") == "production":
+            raise HTTPException(
+                status_code=503,
+                detail="Service temporarily unavailable. Please try again later."
+            )
+        # Development mode - allow but warn
+        logger.warning("Quota check skipped - Supabase not configured (development mode)")
         return
 
     try:
         res = supabase.table('profiles').select('*').eq('id', user_id).execute()
         
+        # Get current date in IST
+        now_ist = datetime.now(IST)
+        today_ist = now_ist.date().isoformat()
+        
         if not res.data:
             # Profile doesn't exist, create it
-            today = datetime.now(timezone.utc).date().isoformat()
             supabase.table('profiles').insert({
                 'id': user_id,
                 'daily_count': 0,
-                'last_reset': today
+                'last_reset': today_ist
             }).execute()
             return  # New user, quota is 0, allow generation
         
@@ -61,44 +76,75 @@ def check_quota(user_id: str):
         count = profile.get('daily_count', 0)
         last_reset = profile.get('last_reset', '')
         
-        # Check if we need to reset (new day)
-        today = datetime.now(timezone.utc).date().isoformat()
-        
-        if last_reset != today:
+        # Check if we need to reset (new day in IST)
+        if last_reset != today_ist:
             # Reset the quota for the new day
             supabase.table('profiles').update({
                 'daily_count': 0,
-                'last_reset': today
+                'last_reset': today_ist
             }).eq('id', user_id).execute()
+            logger.info(f"Quota reset for user {user_id} - New day in IST: {today_ist}")
             return  # Quota reset, allow generation
         
-        # Check if quota exceeded
+        # Check if quota exceeded (STRICT ENFORCEMENT)
         if count >= 2:
+            # Calculate time until next reset (12 AM IST)
+            tomorrow_ist = now_ist.date() + timedelta(days=1)
+            next_reset = datetime.combine(tomorrow_ist, datetime.min.time()).replace(tzinfo=IST)
+            hours_until_reset = int((next_reset - now_ist).total_seconds() / 3600)
+            
             raise HTTPException(
                 status_code=429, 
-                detail=f"Daily quota exceeded ({count}/2 decks). Please try again tomorrow."
+                detail=f"Daily quota exceeded ({count}/2 decks). Resets in ~{hours_until_reset} hours at 12 AM IST."
             )
                 
     except HTTPException:
+        # Re-raise quota exceeded errors
         raise
     except Exception as e:
         error_msg = str(e)
+        
         # Check if it's an RLS policy error
         if 'row-level security policy' in error_msg.lower() or '42501' in error_msg:
-            logger.warning(f"RLS policy error - profiles table not properly configured: {error_msg}")
-            logger.warning("Allowing access in development mode. Set up RLS policies for production.")
-            return  # Allow access despite RLS error
+            logger.error(f"RLS policy error - profiles table not properly configured: {error_msg}")
+            
+            # In production, FAIL CLOSED (deny access)
+            if os.getenv("ENV") == "production":
+                raise HTTPException(
+                    status_code=503,
+                    detail="Service configuration error. Please contact support."
+                )
+            
+            # Development mode - allow but warn
+            logger.warning("Allowing access in development mode despite RLS error")
+            return
         
-        # Log other errors but allow access in development
+        # Other errors
         logger.error(f"Quota check failed: {error_msg}")
-        logger.warning("Allowing access despite quota check failure (development mode)")
-        # Don't raise exception - fail open for development
+        
+        # In production, FAIL CLOSED (deny access)
+        if os.getenv("ENV") == "production":
+            raise HTTPException(
+                status_code=500,
+                detail="Unable to verify quota. Please try again later."
+            )
+        
+        # Development mode - allow but warn
+        logger.warning("Allowing access in development mode despite quota check failure")
+
+
 
 def increment_quota(user_id: str):
     """
     Increments the user's daily quota count.
     Should only be called AFTER successful deck generation.
+    Uses IST timezone for consistency with check_quota.
     """
+    from datetime import datetime, timezone, timedelta
+    
+    # Define IST timezone (UTC+5:30)
+    IST = timezone(timedelta(hours=5, minutes=30))
+    
     supabase = get_supabase()
     if not supabase: 
         return
@@ -109,20 +155,24 @@ def increment_quota(user_id: str):
         
         if res.data:
             current = res.data[0].get('daily_count', 0)
-            today = datetime.now(timezone.utc).date().isoformat()
+            today_ist = datetime.now(IST).date().isoformat()
             
             # Double-check date hasn't changed during generation
-            if res.data[0].get('last_reset') != today:
+            if res.data[0].get('last_reset') != today_ist:
                 # Reset happened during generation, start from 1
                 supabase.table('profiles').update({
                     'daily_count': 1,
-                    'last_reset': today
+                    'last_reset': today_ist
                 }).eq('id', user_id).execute()
+                logger.info(f"Quota incremented to 1 for user {user_id} (reset during generation)")
             else:
                 # Normal increment
+                new_count = current + 1
                 supabase.table('profiles').update({
-                    'daily_count': current + 1
+                    'daily_count': new_count
                 }).eq('id', user_id).execute()
+                logger.info(f"Quota incremented to {new_count}/2 for user {user_id}")
     except Exception as e:
         # Log but don't fail the request since deck was already generated
-        print(f"Warning: Failed to increment quota for user {user_id}: {e}")
+        logger.error(f"Failed to increment quota for user {user_id}: {e}")
+

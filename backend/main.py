@@ -212,9 +212,17 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
 
 
 @app.post("/api/feedback")
-async def submit_feedback(feedback: FeedbackRequest):
+async def submit_feedback(
+    type: str = Form(...),
+    message: str = Form(...),
+    email: Optional[str] = Form(None),
+    rating: int = Form(0),
+    file: Optional[UploadFile] = File(None)
+):
     # 1. Log to console (Basis)
-    log_msg = f"FEEDBACK [{feedback.type}]: {feedback.message} ({feedback.rating}/5) - {feedback.email}"
+    log_msg = f"FEEDBACK [{type}]: {message} ({rating}/5) - {email}"
+    if file:
+        log_msg += f" [Attachment: {file.filename}]"
     logger.info(log_msg)
     
     # 2. Local Log (Dev)
@@ -223,16 +231,43 @@ async def submit_feedback(feedback: FeedbackRequest):
             with open("feedback.log", "a") as f:
                 f.write(f"[{time.ctime()}] {log_msg}\n")
         except: pass
+    
+    # 3. Handle file upload if present
+    file_url = None
+    if file and settings.GITHUB_TOKEN and settings.GITHUB_REPO:
+        try:
+            # Read file content
+            file_content = await file.read()
+            import base64
+            file_b64 = base64.b64encode(file_content).decode('utf-8')
+            
+            # Upload to GitHub as a gist or issue attachment
+            # For now, we'll include it as base64 in the issue
+            # In production, you might want to upload to a CDN or GitHub releases
+            file_url = f"data:{file.content_type};base64,{file_b64[:100]}..." # Truncated for display
+            logger.info(f"File uploaded: {file.filename} ({len(file_content)} bytes)")
+        except Exception as e:
+            logger.error(f"Failed to process file upload: {e}")
         
-    # 3. GitHub Issue Integration
+    # 4. GitHub Issue Integration
     if settings.GITHUB_TOKEN and settings.GITHUB_REPO:
         try:
             url = f"https://api.github.com/repos/{settings.GITHUB_REPO}/issues"
+            
+            # Build issue body
+            body = f"**Rating:** {rating}/5\n**Email:** {email}\n**Type:** {type}\n\n**Message:**\n{message}"
+            
+            if file:
+                body += f"\n\n**Attachment:** `{file.filename}` ({file.content_type})"
+                if file_url:
+                    body += f"\n*File size: {len(file_content)} bytes*"
+            
             data = {
-                "title": f"User Feedback: {feedback.type.title()}",
-                "body": f"**Rating:** {feedback.rating}/5\n**Email:** {feedback.email}\n**Type:** {feedback.type}\n\n**Message:**\n{feedback.message}",
+                "title": f"User Feedback: {type.title()}",
+                "body": body,
                 "labels": ["feedback", "user-submitted"]
             }
+            
             req = urllib.request.Request(
                 url, 
                 data=json.dumps(data).encode("utf-8"), 
@@ -249,6 +284,7 @@ async def submit_feedback(feedback: FeedbackRequest):
             logger.error(f"Failed to post feedback to GitHub: {e}")
 
     return {"status": "received", "message": "Feedback submitted."}
+
 
 @app.get("/api/config")
 def get_config():
