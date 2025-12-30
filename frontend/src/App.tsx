@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import ScrollToTop from "@/components/ScrollToTop";
 import Index from "./pages/Index";
 import StudioPage from "./pages/StudioPage";
 import FeedbackPage from "./pages/FeedbackPage";
@@ -30,6 +31,7 @@ const App = () => (
         <Sonner />
         <AuthProvider>
             <BrowserRouter>
+            <ScrollToTop />
             <AuthRedirect />
             <Routes>
                 <Route path="/" element={<Index />} />

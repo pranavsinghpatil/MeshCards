@@ -187,15 +187,15 @@ export default function FeedbackPage() {
                 {/* Dev Message */}
                 <div className="bg-muted/30 rounded-2xl border-2 border-border p-6 border-dashed">
                   <h3 className="font-bold text-lg mb-3">From the Developer</h3>
-                  <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                  <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
                     Hi! I built MeshCards to help students study more effectively. This project is a labor of love, and I'm working on it in my spare time.
                   </p>
-                  <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                  <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
                     Your feedback and support mean everything.
                   </p>
-                  <div className="pt-3 border-t border-border/50">
+                  <div className="mb-0">
                     <p className="text-sm text-muted-foreground mb-2">
-                      Use the form above, or{' '}
+                      ⬅ Use the form, or{' '}
                       <a 
                         href="mailto:talktopranav@cc.cc" 
                         className="text-primary hover:text-primary/80 underline font-semibold"
