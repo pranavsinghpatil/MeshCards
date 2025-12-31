@@ -66,6 +66,39 @@ export default function MaintenancePage() {
 
             {/* Right Side - Content */}
             <div className="p-8 space-y-5">
+              
+              {/* Quick Links */}
+              <div className="bg-muted/20 rounded-lg p-4 border-2 border-border">
+                <h3 className="text-sm font-bold mb-3 text-center">Quick Links</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <a
+                    href="/guide"
+                    className="text-xs text-center py-2 px-3 bg-card hover:bg-muted rounded-lg border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_hsl(var(--foreground))] transition-all font-bold"
+                  >
+                    Import Guide
+                  </a>
+                  <a
+                    href="/legal?section=disclaimer"
+                    className="text-xs text-center py-2 px-3 bg-card hover:bg-muted rounded-lg border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_hsl(var(--foreground))] transition-all font-bold"
+                  >
+                     Disclaimer
+                  </a>
+                  <a
+                    href="/legal?section=terms"
+                    className="text-xs text-center py-2 px-3 bg-card hover:bg-muted rounded-lg border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_hsl(var(--foreground))] transition-all font-bold"
+                  >
+                     Terms & Conditions
+                  </a>
+                  <a
+                    href="/legal?section=privacy"
+                    className="text-xs text-center py-2 px-3 bg-card hover:bg-muted rounded-lg border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_hsl(var(--foreground))] transition-all font-bold"
+                  >
+                     Privacy Policy
+                  </a>
+                  
+                </div>
+              </div>
+              
               {/* Quote */}
               <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 rounded-lg p-5 border-2 border-primary/20">
                 <p className="text-base italic text-foreground/90 mb-2">
@@ -108,8 +141,18 @@ export default function MaintenancePage() {
                     </div>
                   </div>
 
+                  {/* Social Proof */}
+                  <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-4 border border-primary/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Trusted by students worldwide</p>
+                    <div className="flex items-center justify-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <StarIcon key={i} className="w-3 h-3 fill-green-500 text-green-500" />
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Why We're Great */}
-                  <div className="bg-muted/30 rounded-lg p-4 border-2 border-border">
+                  {/* <div className="bg-muted/30 rounded-lg p-4 border-2 border-border">
                     <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-primary" />
                       Why MeshCards?
@@ -128,13 +171,13 @@ export default function MaintenancePage() {
                         <span>Built for Students</span>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Right Column - Support & Contact */}
                 <div className="space-y-4">
                   <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/30 dark:to-orange-950/30 rounded-lg border-2 border-yellow-300 dark:border-yellow-700 p-5">
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-0">
                       <Coffee className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                       <h3 className="text-base font-bold text-yellow-900 dark:text-yellow-100">Support This Project</h3>
                     </div>
@@ -155,7 +198,7 @@ export default function MaintenancePage() {
 
                   {/* Contact */}
                   <div className="bg-muted/30 rounded-lg p-4 border-2 border-border">
-                    <h3 className="text-sm font-bold mb-3">Need Help?</h3>
+                    <h3 className="text-sm font-bold mb-0">Need Help?</h3>
                     <p className="text-xs text-muted-foreground mb-3">
                       For urgent issues or questions, reach out directly:
                     </p>
@@ -168,15 +211,7 @@ export default function MaintenancePage() {
                     </a>
                   </div>
 
-                  {/* Social Proof */}
-                  <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-4 border border-primary/20 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Trusted by students worldwide</p>
-                    <div className="flex items-center justify-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <StarIcon key={i} className="w-3 h-3 fill-green-500 text-green-500" />
-                      ))}
-                    </div>
-                  </div>
+                  
                 </div>
               </div>
 

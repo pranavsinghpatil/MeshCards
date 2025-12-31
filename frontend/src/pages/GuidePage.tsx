@@ -1,12 +1,32 @@
 import React from 'react';
 import Header from '@/components/Header';
 import SimpleFooter from '@/components/SimpleFooter';
-import { BookOpen, Download, HelpCircle, GraduationCap, Youtube } from 'lucide-react';
+import { BookOpen, Download, HelpCircle, GraduationCap, Youtube, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 const GuidePage = () => {
+    const navigate = useNavigate();
+    const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+
     return (
         <div className="min-h-screen bg-background flex flex-col">
-            <Header />
+            {!isMaintenanceMode && <Header />}
+            
+            {/* Back button for maintenance mode */}
+            {isMaintenanceMode && (
+                <div className="container mx-auto px-4 pt-4">
+                    <Button
+                        variant="outline"
+                        onClick={() => navigate('/')}
+                        className="border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_hsl(var(--foreground))]"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back to Maintenance Page
+                    </Button>
+                </div>
+            )}
+            
             <main className="flex-1 container py-12 max-w-4xl">
                 <div className="mb-10 text-center">
                     <h1 className="text-4xl font-bold mb-4">How to Use Your Study Deck</h1>
@@ -190,7 +210,7 @@ const GuidePage = () => {
                 </div>
 
             </main>
-            <SimpleFooter />
+            {!isMaintenanceMode && <SimpleFooter />}
         </div>
     );
 };

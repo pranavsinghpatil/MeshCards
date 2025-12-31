@@ -28,12 +28,25 @@ const App = () => {
   // Check if maintenance mode is enabled
   const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
 
-  // If maintenance mode is on, show maintenance page
+  // If maintenance mode is on, show maintenance page but allow guide/legal routes
   if (isMaintenanceMode) {
     return (
-      <ThemeProvider>
-        <MaintenancePage />
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <TooltipProvider>
+            <BrowserRouter>
+              <ScrollToTop />
+              <Routes>
+                {/* Allow these pages during maintenance */}
+                <Route path="/guide" element={<GuidePage />} />
+                <Route path="/legal" element={<LegalPage />} />
+                {/* All other routes show maintenance page */}
+                <Route path="*" element={<MaintenancePage />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
     );
   }
 

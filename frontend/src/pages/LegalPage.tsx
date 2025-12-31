@@ -3,16 +3,43 @@ import Header from "@/components/Header";
 import SimpleFooter from "@/components/SimpleFooter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const LegalPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const section = searchParams.get('section') || 'disclaimer';
+  const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ section: value });
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+      {!isMaintenanceMode && <Header />}
+      
+      {/* Back button for maintenance mode */}
+      {isMaintenanceMode && (
+        <div className="container mx-auto px-4 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/')}
+            className="border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_hsl(var(--foreground))]"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Maintenance Page
+          </Button>
+        </div>
+      )}
+      
       <main className="flex-1 container mx-auto px-4 py-12 md:py-16">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold mb-8 text-center">Legal Documentation</h1>
           
-          <Tabs defaultValue="disclaimer" className="w-full">
+          <Tabs value={section} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-8">
                 <TabsTrigger value="disclaimer">Disclaimer</TabsTrigger>
               <TabsTrigger value="terms">Terms & Conditions</TabsTrigger>
@@ -744,14 +771,27 @@ const LegalPage = () => {
             
             <div className="mt-8 text-center">
                 <p className="text-muted-foreground mb-4">Have questions about these terms?</p>
-                <a href="/feedback" className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors">
+                {isMaintenanceMode ? (
+                  <a 
+                    href="mailto:talktopranav@cc.cc" 
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    talktopranav@cc.cc
+                  </a>
+                ) : (
+                  <a 
+                    href="/feedback" 
+                    className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors"
+                  >
                     Contact Us
-                </a>
+                  </a>
+                )}
             </div>
           </Tabs>
         </div>
       </main>
-      <SimpleFooter />
+      {!isMaintenanceMode && <SimpleFooter />}
     </div>
   );
 };
