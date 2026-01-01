@@ -308,6 +308,15 @@ const Studio = () => {
         setLastJobId(job_id);
         setGenerationSuccess(true);
 
+        // Refresh quota count after successful generation
+        const sb = getSupabase();
+        if (sb && session?.user) {
+            const { data } = await sb.from('profiles').select('daily_count').eq('id', session.user.id).single();
+            if (data) {
+                setDailyCount(data.daily_count);
+            }
+        }
+
     } catch (error: any) {
          let title = "Error";
          let description = error.message || "Something went wrong";
