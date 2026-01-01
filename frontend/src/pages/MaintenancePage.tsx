@@ -49,10 +49,10 @@ export default function MaintenancePage() {
                 <div className="bg-background/50 rounded-lg p-3 border border-border">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs text-muted-foreground">Progress</span>
-                    <span className="text-xs font-bold">10%</span>
+                    <span className="text-xs font-bold">63%</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
-                    <div className="bg-primary h-2 rounded-full transition-all" style={{ width: '10%' }}></div>
+                    <div className="bg-primary h-2 rounded-full transition-all" style={{ width: '63%' }}></div>
                   </div>
                 </div>
                 {/* <div className="bg-background/50 rounded-lg p-2 border border-border text-xs">
