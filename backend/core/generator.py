@@ -6,13 +6,17 @@ class FlashcardGenerator:
     def __init__(self, llm_client: LLMClient):
         self.llm_client = llm_client
 
-    def generate_flashcards(self, text: str, config: DeckConfig) -> List[Flashcard]:
+    def generate_flashcards(self, text: str, config: DeckConfig, on_progress=None) -> List[Flashcard]:
         """
         Generate flashcards with automatic optimization for minimal API cost
         """
         from .chunker import estimate_tokens, extract_key_content, chunk_text
         from .logging import logger
         import time
+        
+        def report(msg):
+            if on_progress:
+                on_progress(msg)
         
         # Estimate tokens
         estimated_tokens = estimate_tokens(text)
@@ -21,6 +25,7 @@ class FlashcardGenerator:
         # Strategy 1: Small text - direct generation (most cost-effective)
         if estimated_tokens < 20000:
             logger.info("Using direct generation (small text)")
+            report("Generating flashcards...")
             prompt = self._build_prompt(text, config)
             response_json = self.llm_client.generate_json(prompt)
             generation_response = GenerationResponse(**response_json)
@@ -29,6 +34,7 @@ class FlashcardGenerator:
         # Strategy 2: Medium text - semantic extraction (60-80% cost reduction)
         elif estimated_tokens < 50000:
             logger.info("Using semantic extraction (medium text)")
+            report("Optimizing content...")
             extracted = extract_key_content(text, max_tokens=20000)
             extracted_tokens = estimate_tokens(extracted)
             logger.info(f"Extracted key content: {len(extracted)} chars, ~{extracted_tokens} tokens (reduced by {100 - (extracted_tokens/estimated_tokens*100):.1f}%)")
@@ -45,7 +51,9 @@ class FlashcardGenerator:
             # First, try to extract key content to reduce size
             extracted = extract_key_content(text, max_tokens=40000)
             extracted_tokens = estimate_tokens(extracted)
-            logger.info(f"Extracted key content: ~{extracted_tokens} tokens (reduced by {100 - (extracted_tokens/estimated_tokens*100):.1f}%)")
+            log_msg = f"Extracted key content: ~{extracted_tokens} tokens (reduced by {100 - (extracted_tokens/estimated_tokens*100):.1f}%)"
+            logger.info(log_msg)
+            report("Optimizing large document...")
             
             # If extraction is still too large, chunk it
             if extracted_tokens > 25000:
@@ -56,7 +64,9 @@ class FlashcardGenerator:
                 cards_per_chunk = max(1, config.max_cards // len(chunks))
                 
                 for i, chunk in enumerate(chunks):
-                    logger.info(f"Processing chunk {i+1}/{len(chunks)}")
+                    msg = f"Processing part {i+1} of {len(chunks)}..."
+                    logger.info(msg)
+                    report(msg)
                     
                     # Adjust config for this chunk
                     chunk_config = DeckConfig(
@@ -85,6 +95,7 @@ class FlashcardGenerator:
                 return all_cards[:config.max_cards]
             else:
                 # Extracted content fits in one call
+                report("Generating flashcards from optimized content...")
                 prompt = self._build_prompt(extracted, config)
                 response_json = self.llm_client.generate_json(prompt)
                 generation_response = GenerationResponse(**response_json)

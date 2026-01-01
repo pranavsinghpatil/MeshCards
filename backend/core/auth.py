@@ -106,7 +106,11 @@ def check_quota(user_id: str):
         
         # Check if it's an RLS policy error
         if 'row-level security policy' in error_msg.lower() or '42501' in error_msg:
-            logger.error(f"RLS policy error - profiles table not properly configured: {error_msg}")
+            # Only log as error if in production, otherwise just info/debug to reduce noise
+            if os.getenv("ENV") == "production":
+                 logger.error(f"RLS policy error - profiles table not properly configured: {error_msg}")
+            else:
+                 logger.info(f"Supabase RLS policy restricted access (Active in Dev): {error_msg}")
             
             # In production, FAIL CLOSED (deny access)
             if os.getenv("ENV") == "production":

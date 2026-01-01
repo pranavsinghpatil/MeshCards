@@ -126,6 +126,10 @@ class GeminiClient(LLMClient):
                     # Fallback for unknown
                     content_parts.append(str(part))
         
+        
+        max_retries = 5  # Increased from 3
+        base_delay = 5   # Increased from 2 seconds
+        
         for attempt in range(max_retries + 1):
             try:
                 # Gemini generate_content accepts a list of parts (str or PIL.Image)
@@ -137,13 +141,24 @@ class GeminiClient(LLMClient):
             except Exception as e:
                 # Check for rate limit error (ResourceExhausted is common for Gemini API)
                 error_str = str(e).lower()
-                if "429" in error_str or "resourceexhausted" in error_str or "quota" in error_str:
+                is_rate_limit = any(x in error_str for x in ["429", "resourceexhausted", "quota", "rate limit"])
+                
+                if is_rate_limit:
                     if attempt < max_retries:
-                        sleep_time = base_delay * (2 ** attempt) + random.uniform(0, 1)
-                        print(f"DEBUG: Rate limited. Retrying in {sleep_time:.2f}s... (Attempt {attempt+1}/{max_retries})")
+                        # Exponential backoff: 5s, 10s, 20s, 40s, 80s
+                        sleep_time = base_delay * (2 ** attempt) + random.uniform(0, 2)
+                        print(f"⏳ API rate limit hit. Retrying in {sleep_time:.1f}s... (Attempt {attempt+1}/{max_retries})")
                         time.sleep(sleep_time)
                         continue
-                raise e # Re-raise if not a rate limit error or max retries exceeded
+                    else:
+                        # All retries exhausted
+                        raise Exception(
+                            "API rate limit exceeded after multiple retries. "
+                            "Please try again in a few minutes. "
+                            "The service may be experiencing high load."
+                        )
+                
+                raise e # Re-raise if not a rate limit error
 
 class OpenAIClient(LLMClient):
     def __init__(self, api_key: str):
