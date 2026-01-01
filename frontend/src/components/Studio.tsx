@@ -7,11 +7,17 @@ import { getSupabase } from "@/lib/supabase";
 import { getApiUrl } from "@/lib/api";
 import Header from "./Header";
 import SimpleFooter from "./SimpleFooter";
+import AdComponent from "./AdComponent";
 
-const LoadingOverlay = () => {
+const LoadingOverlay = ({ statusMessage }: { statusMessage?: string }) => {
     const [text, setText] = useState("Initializing AI...");
     
     useEffect(() => {
+        if (statusMessage) {
+            setText(statusMessage);
+            return;
+        }
+
         const messages = [
             "Reading your documents...",
             "Identifying key concepts...",
@@ -26,7 +32,7 @@ const LoadingOverlay = () => {
             i++;
         }, 3000);
         return () => clearInterval(timer);
-    }, []);
+    }, [statusMessage]);
 
     return (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px] animate-in fade-in duration-500 rounded-2xl select-none">
@@ -141,9 +147,16 @@ const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId:
             </div>
         </div>
         
-        {/* Blank component as requested */}
-        <div className="w-full max-w-3xl mx-auto h-24 border-2 border-foreground/10 rounded-3xl bg-card/10 border-dashed flex items-center justify-center">
-             <span className="text-muted-foreground/20 font-black text-3xl select-none tracking-widest">MESH CARDS</span>
+        {/* Educational Ad Slot */}
+        {/* Educational Ad Slot */}
+        <div className="w-full max-w-3xl mx-auto mt-8">
+            <AdComponent 
+                dataAdSlot="2267661918" 
+                className="min-h-[100px]"
+            />
+            {/* <p className="text-[10px] text-center text-muted-foreground/40 mt-1">
+                Sponsored
+            </p> */}
         </div>
     </div>
   )
@@ -163,6 +176,7 @@ const Studio = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dailyCount, setDailyCount] = useState<number | null>(null);
   const [lastJobId, setLastJobId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -231,6 +245,7 @@ const Studio = () => {
   const pollJob = async (jobId: string) => {
       const maxRetries = 60;
       let attempts = 0;
+      let lastStatus = '';
 
       while (attempts < maxRetries) {
           await new Promise(r => setTimeout(r, 2000));
@@ -238,8 +253,67 @@ const Studio = () => {
           if (!res.ok) throw new Error("Status check failed");
 
           const data = await res.json();
+          
+          // Show queue status
+          if (data.status === 'queued') {
+              const position = data.position || 0;
+              const queueLength = data.queue_length || 0;
+              const waitTime = data.estimated_wait_seconds || 0;
+              const minutes = Math.floor(waitTime / 60);
+              const seconds = waitTime % 60;
+              
+              const msg = `⏳ In Queue (Position ${position}/${queueLength}) - Wait ${minutes > 0 ? `${minutes}m ` : ''}${seconds}s`;
+              setStatusMessage(msg);
+              
+              if (lastStatus !== 'queued') {
+                  toast({ 
+                      title: msg,
+                      description: `MeshCards is FREE - we queue requests to prevent API limits.`
+                  });
+                  lastStatus = 'queued';
+              }
+          }
+          
+          // Show processing status
+          if (data.status === 'processing') {
+              const loadingMsg = data.message ? `🔄 ${data.message}` : "🔄 Processing Your Deck...";
+              setStatusMessage(loadingMsg);
+              
+              if (lastStatus !== 'processing') {
+                  toast({ 
+                      title: "🔄 Processing Your Deck",
+                      description: "AI is generating your flashcards..."
+                  });
+                  lastStatus = 'processing';
+              }
+          }
+          
           if (data.status === 'completed') return true;
-          if (data.status === 'failed') throw new Error(data.error || "Generation failed");
+          
+          if (data.status === 'failed') {
+              const error = data.error || "Generation failed";
+              // Check if it's a quota error
+              if (error.toLowerCase().includes('quota') || error.toLowerCase().includes('2/2')) {
+                  throw new Error(`📊 ${error}\n\nMeshCards is FREE with a 2-deck daily limit. This helps us keep it accessible to everyone!`);
+              }
+              // Check if it's a rate limit error
+              if (error.toLowerCase().includes('rate limit') || error.toLowerCase().includes('429')) {
+                  throw new Error(`⚠️ ${error}\n\nToo many students are generating decks right now. Please wait 1-2 minutes and try again.`);
+              }
+              
+              // Check for PDF/Input errors (User Error)
+              if (error.includes('Invalid Elementary Object') || error.includes('PDF')) {
+                  throw new Error(`📄 PDF Error: The file seems corrupted or encrypted. Please try a different PDF or copy-paste the text instead.`);
+              }
+              
+              if (error.includes('No cards generated') || error.includes('No input')) {
+                  throw new Error(`📝 No Content Found: We couldn't extract enough text to generate flashcards. Please try adding more text or a clearer document.`);
+              }
+              
+              // Generic error (Server Error)
+              throw new Error(error);
+          }
+          
           attempts++;
       }
       throw new Error("Timeout waiting for generation");
@@ -357,13 +431,20 @@ const Studio = () => {
             <p className="text-muted-foreground">
               Upload your content and configure settings to generate cards
             </p>
+            {/* Debug Button */}
+            {/* <button 
+                onClick={() => setGenerationSuccess(true)}
+                className="mt-2 text-xs text-muted-foreground/50 hover:text-primary transition-colors opacity-50 hover:opacity-100"
+            >
+                [Debug] View Success Page
+            </button> */}
           </div>
 
           {generationSuccess ? (
              <SuccessView jobId={lastJobId} onReset={clearAll} deckName={deckName || "Generated Deck"} />
           ) : (
             <div className="grid lg:grid-cols-5 gap-6 max-w-6xl mx-auto mb-10 relative">
-                {isGenerating && <LoadingOverlay />}
+                {isGenerating && <LoadingOverlay statusMessage={statusMessage} />}
                 
                 <div className="lg:col-span-3">
                 <div className="bg-card rounded-2xl border-2 border-foreground p-6 shadow-[4px_4px_0_0_hsl(var(--foreground))] h-full">
