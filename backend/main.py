@@ -18,6 +18,13 @@ import json
 import traceback
 from pypdf import PdfReader
 
+# Suppress annoying warnings
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='pypdf')
+warnings.filterwarnings('ignore', category=UserWarning, module='pydantic')
+warnings.filterwarnings('ignore', message='.*ARC4.*')
+warnings.filterwarnings('ignore', message='.*model_.*')
+
 from backend.core.llm import get_llm_client
 from backend.core.generator import FlashcardGenerator
 from backend.core.schemas import DeckConfig, FeedbackRequest
@@ -30,6 +37,7 @@ from backend.core.logging import logger
 from backend.core.auth import get_current_user, check_quota, increment_quota
 from backend.core.error_reporter import report_error
 from backend.core.storage import get_deck_storage
+from backend.core.job_queue import job_queue
 
 # Setup Rate Limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -378,13 +386,7 @@ async def submit_job(
     if not input_text.strip() and not image_files:
         raise HTTPException(status_code=400, detail="No input provided. Please provide text or upload files.")
     
-    # Create Job
-    job_id = str(uuid.uuid4())
-    jobs[job_id] = {
-        "status": "pending",
-        "created_at": time.time()
-    }
-    
+    # Prepare job data for queue
     config_data = {
         "name": deck_name,
         "difficulty": difficulty,
@@ -394,25 +396,38 @@ async def submit_job(
         "custom_instructions": custom_instructions
     }
     
-    logger.info(f"Job {job_id}: Accepted. Provider={provider}, Images={len(image_files)}")
+    job_data = {
+        "text": input_text,
+        "config": config_data,
+        "provider": provider,
+        "user_key": api_key,
+        "images_enabled": images,
+        "image_files": image_files
+    }
     
-    # Start Task
-    background_tasks.add_task(
-        generate_deck_task, 
-        job_id, 
-        input_text, 
-        config_data, 
-        provider, 
-        api_key, 
-        images,
-        user.id,  # Pass user_id for quota increment after success
-        image_files  # Pass image files for vision processing
-    )
+    logger.info(f"Adding job to queue. Provider={provider}, Images={len(image_files)}")
     
-    return {"job_id": job_id, "status": "pending"}
+    # Add to queue instead of immediate execution
+    job_id = await job_queue.add_job(user.id, job_data)
+    
+    # Also add to jobs dict for backward compatibility
+    jobs[job_id] = {
+        "status": "queued",
+        "created_at": time.time()
+    }
+    
+    logger.info(f"Job {job_id}: Added to queue for user {user.id}")
+    
+    return {"job_id": job_id, "status": "queued"}
 
 @app.get("/status/{job_id}")
-def get_status(job_id: str):
+async def get_status(job_id: str):
+    # First check if it's in the queue system
+    queue_status = await job_queue.get_job_status(job_id)
+    if queue_status:
+        return queue_status
+    
+    # Fall back to regular jobs dict
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     
@@ -420,7 +435,9 @@ def get_status(job_id: str):
     return {
         "job_id": job_id,
         "status": job["status"],
-        "error": job.get("error")
+        "error": job.get("error"),
+        "position": 0,  # Not in queue
+        "queue_length": 0
     }
 
 @app.get("/download/{job_id}")
