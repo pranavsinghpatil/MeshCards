@@ -7,14 +7,88 @@ class FlashcardGenerator:
         self.llm_client = llm_client
 
     def generate_flashcards(self, text: str, config: DeckConfig) -> List[Flashcard]:
-        prompt = self._build_prompt(text, config)
-        print(f"DEBUG: Sending prompt to LLM (Length: {len(prompt)})")
-        response_json = self.llm_client.generate_json(prompt)
-        print(f"DEBUG: Received response from LLM: {response_json}")
+        """
+        Generate flashcards with automatic optimization for minimal API cost
+        """
+        from .chunker import estimate_tokens, extract_key_content, chunk_text
+        from .logging import logger
+        import time
         
-        # Validate against schema
-        generation_response = GenerationResponse(**response_json)
-        return generation_response.cards
+        # Estimate tokens
+        estimated_tokens = estimate_tokens(text)
+        logger.info(f"Input text: {len(text)} chars, ~{estimated_tokens} tokens")
+        
+        # Strategy 1: Small text - direct generation (most cost-effective)
+        if estimated_tokens < 20000:
+            logger.info("Using direct generation (small text)")
+            prompt = self._build_prompt(text, config)
+            response_json = self.llm_client.generate_json(prompt)
+            generation_response = GenerationResponse(**response_json)
+            return generation_response.cards
+        
+        # Strategy 2: Medium text - semantic extraction (60-80% cost reduction)
+        elif estimated_tokens < 50000:
+            logger.info("Using semantic extraction (medium text)")
+            extracted = extract_key_content(text, max_tokens=20000)
+            extracted_tokens = estimate_tokens(extracted)
+            logger.info(f"Extracted key content: {len(extracted)} chars, ~{extracted_tokens} tokens (reduced by {100 - (extracted_tokens/estimated_tokens*100):.1f}%)")
+            
+            prompt = self._build_prompt(extracted, config)
+            response_json = self.llm_client.generate_json(prompt)
+            generation_response = GenerationResponse(**response_json)
+            return generation_response.cards
+        
+        # Strategy 3: Large text - chunking with extraction (necessary for very large docs)
+        else:
+            logger.info("Using chunked generation (large text)")
+            
+            # First, try to extract key content to reduce size
+            extracted = extract_key_content(text, max_tokens=40000)
+            extracted_tokens = estimate_tokens(extracted)
+            logger.info(f"Extracted key content: ~{extracted_tokens} tokens (reduced by {100 - (extracted_tokens/estimated_tokens*100):.1f}%)")
+            
+            # If extraction is still too large, chunk it
+            if extracted_tokens > 25000:
+                chunks = chunk_text(extracted, max_tokens=20000)
+                logger.info(f"Split into {len(chunks)} chunks")
+                
+                all_cards = []
+                cards_per_chunk = max(1, config.max_cards // len(chunks))
+                
+                for i, chunk in enumerate(chunks):
+                    logger.info(f"Processing chunk {i+1}/{len(chunks)}")
+                    
+                    # Adjust config for this chunk
+                    chunk_config = DeckConfig(
+                        name=config.name,
+                        difficulty=config.difficulty,
+                        style=config.style,
+                        max_cards=cards_per_chunk,
+                        model_name=config.model_name,
+                        custom_instructions=config.custom_instructions
+                    )
+                    
+                    try:
+                        prompt = self._build_prompt(chunk, chunk_config)
+                        response_json = self.llm_client.generate_json(prompt)
+                        generation_response = GenerationResponse(**response_json)
+                        all_cards.extend(generation_response.cards)
+                    except Exception as e:
+                        logger.error(f"Chunk {i+1} failed: {e}")
+                        # Continue with other chunks
+                    
+                    # Small delay between chunks to avoid rate limits
+                    if i < len(chunks) - 1:
+                        time.sleep(2)
+                
+                # Return up to max_cards
+                return all_cards[:config.max_cards]
+            else:
+                # Extracted content fits in one call
+                prompt = self._build_prompt(extracted, config)
+                response_json = self.llm_client.generate_json(prompt)
+                generation_response = GenerationResponse(**response_json)
+                return generation_response.cards
     
     def generate_flashcards_multimodal(self, prompt_parts: list, config: DeckConfig) -> List[Flashcard]:
         """
