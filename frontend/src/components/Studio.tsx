@@ -319,6 +319,64 @@ const Studio = () => {
       throw new Error("Timeout waiting for generation");
   };
 
+  const monitorJob = async (jobId: string, name: string) => {
+      try {
+          setIsGenerating(true);
+          setLastJobId(jobId);
+          setDeckName(name); // Restore name context
+          setStatusMessage("Processing...");
+          
+          // Persist job state
+          localStorage.setItem("mesh_active_job", JSON.stringify({id: jobId, name: name}));
+
+          await pollJob(jobId);
+
+          // Success Logic
+          
+          // Check if already downloaded to prevent duplicates on reload/nav
+          if (!localStorage.getItem(`mesh_downloaded_${jobId}`)) {
+              toast({ title: "Success!", description: "Deck generated successfully. Downloading..." });
+              
+              const downloadLink = document.createElement('a');
+              downloadLink.href = getApiUrl(`/download/${jobId}`);
+              document.body.appendChild(downloadLink);
+              downloadLink.click();
+              document.body.removeChild(downloadLink);
+              
+              localStorage.setItem(`mesh_downloaded_${jobId}`, "true");
+          } else {
+               toast({ title: "Ready!", description: "Your deck is ready." });
+          }
+          
+          setGenerationSuccess(true);
+          
+          // Update Quota
+          const sb = getSupabase();
+          if (sb && session?.user) {
+              const { data } = await sb.from('profiles').select('daily_count').eq('id', session.user.id).single();
+              if (data) setDailyCount(data.daily_count);
+          }
+
+      } catch (error: any) {
+          let title = "Error";
+          let description = error.message || "Something went wrong";
+          if (description.includes("| Title:")) {
+              const parts = description.split("| Title:");
+              if (parts.length === 2) {
+                  const codePart = parts[0].split("Error Code:");
+                  if (codePart.length === 2) {
+                      title = parts[1].trim();
+                      description = `Code: ${codePart[1].trim()}`;
+                  }
+              }
+          }
+          toast({ title: title, description: description, variant: "destructive" });
+      } finally {
+          setIsGenerating(false);
+          localStorage.removeItem("mesh_active_job");
+      }
+  };
+
   const handleGenerate = async () => {
     if (!session) {
         toast({ title: "Sign In Required", description: "Please sign in to generate flashcards.", variant: "destructive" });
@@ -336,9 +394,7 @@ const Studio = () => {
     try {
         const payload = new FormData();
         payload.append("text", text);
-        uploadedFiles.forEach(file => {
-            payload.append("files", file);
-        });
+        uploadedFiles.forEach(file => { payload.append("files", file); });
 
         // Use selected model directly
         payload.append("provider", "gemini"); 
@@ -348,7 +404,8 @@ const Studio = () => {
         payload.append("style", cardStyle);
         // Default deck name to first file if present
         const defaultName = uploadedFiles.length > 0 ? uploadedFiles[0].name.split('.')[0] : "Generated Deck";
-        payload.append("deck_name", deckName || defaultName);
+        const finalName = deckName || defaultName;
+        payload.append("deck_name", finalName);
 
         const res = await fetch(getApiUrl('/generate'), {
             method: 'POST',
@@ -367,46 +424,19 @@ const Studio = () => {
         }
 
         const { job_id } = await res.json();
-        toast({ title: "Processing", description: "AI is generating your cards..." });
-
-        await pollJob(job_id);
-
-        toast({ title: "Success!", description: "Deck generated successfully. Downloading..." });
-
-        const downloadLink = document.createElement('a');
-        downloadLink.href = getApiUrl(`/download/${job_id}`);
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
         
-        setLastJobId(job_id);
-        setGenerationSuccess(true);
-
-        // Refresh quota count after successful generation
-        const sb = getSupabase();
-        if (sb && session?.user) {
-            const { data } = await sb.from('profiles').select('daily_count').eq('id', session.user.id).single();
-            if (data) {
-                setDailyCount(data.daily_count);
-            }
-        }
+        toast({ 
+            title: "Started! ⚠️ Keep Tab Open", 
+            description: "Large files take time. Switching pages might interrupt progress.",
+            duration: 6000 
+        });
+        
+        // Hand off to monitor
+        await monitorJob(job_id, finalName);
 
     } catch (error: any) {
-         let title = "Error";
-         let description = error.message || "Something went wrong";
-         if (description.includes("| Title:")) {
-             const parts = description.split("| Title:");
-             if (parts.length === 2) {
-                 const codePart = parts[0].split("Error Code:");
-                 if (codePart.length === 2) {
-                     title = parts[1].trim();
-                     description = `Code: ${codePart[1].trim()}`;
-                 }
-             }
-         }
-         toast({ title: title, description: description, variant: "destructive" });
-    } finally {
-        setIsGenerating(false);
+         toast({ title: "Error", description: error.message || "Something went wrong", variant: "destructive" });
+         setIsGenerating(false);
     }
   };
 
@@ -415,6 +445,32 @@ const Studio = () => {
     setUploadedFiles([]);
     setGenerationSuccess(false);
   };
+  
+  // Restore active job on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("mesh_active_job");
+    if (saved && !generationSuccess && !isGenerating) {
+        try {
+            const { id, name } = JSON.parse(saved);
+            if (id) {
+                setStatusMessage("Restoring active session...");
+                monitorJob(id, name);
+            }
+        } catch (e) {
+            localStorage.removeItem("mesh_active_job");
+        }
+    }
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        if (localStorage.getItem("mesh_active_job")) {
+            e.preventDefault();
+            e.returnValue = ""; // Chrome requires this
+        }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hasContent = text.length > 0 || uploadedFiles.length > 0;
 
