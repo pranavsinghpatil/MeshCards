@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Dict, List
 import shutil
 import os
+import asyncio
 import tempfile
 import random
 import uuid
@@ -66,6 +67,13 @@ def update_job_status(job_id: str, status: str, error: str = None):
 
 # Register callback
 job_queue.set_status_callback(update_job_status)
+
+@app.on_event("startup")
+async def startup_event():
+    # Start the job queue cleanup task (removes old completed/failed jobs after 24h)
+    from backend.core.job_queue import cleanup_old_jobs_task
+    asyncio.create_task(cleanup_old_jobs_task())
+    logger.info("Background cleanup task started")
 
 def cleanup_file(path: str):
     try:

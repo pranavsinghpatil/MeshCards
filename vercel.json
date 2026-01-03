@@ -2,18 +2,31 @@
     "version": 2,
     "builds": [
         {
-            "src": "src/api/server.py",
+            "src": "backend/main.py",
             "use": "@vercel/python",
             "config": {
                 "maxLambdaSize": "15mb",
-                "runtime": "python3.9"
+                "runtime": "python3.11"
             }
         }
     ],
     "routes": [
         {
+            "src": "/(api|generate|status|download|feedback)(/.*)?",
+            "dest": "backend/main.py"
+        },
+        {
+            "src": "/assets/(.*)",
+            "dest": "frontend/dist/assets/$1"
+        },
+        {
             "src": "/(.*)",
-            "dest": "src/api/server.py"
+            "dest": "frontend/dist/$1",
+            "check": true
+        },
+        {
+            "src": "/(.*)",
+            "dest": "frontend/dist/index.html"
         }
     ]
 }

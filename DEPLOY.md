@@ -48,10 +48,10 @@ This is the easiest way to ensure consistency.
    ```bash
    # Using Gunicorn (Linux/Mac)
    pip install gunicorn
-   gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.api.server:app --bind 0.0.0.0:8000
+   gunicorn -w 4 -k uvicorn.workers.UvicornWorker backend.main:app --bind 0.0.0.0:8000
    
    # Using Uvicorn (Windows)
-   python -m uvicorn src.api.index:app --host 0.0.0.0 --port 8000
+   python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
    ```
 
 ## Scaling Strategy (Zero Cost)

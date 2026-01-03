@@ -91,7 +91,7 @@ export default function FeedbackPage() {
               <div className="md:col-span-2">
                 <form onSubmit={handleSubmit} className="bg-card rounded-2xl border-2 border-foreground p-6 shadow-[4px_4px_0_0_hsl(var(--foreground))]">
                   {/* Feedback Type */}
-                  <div className="mb-8">
+                  <div className="mb-6">
                     <label className="text-sm font-bold mb-3 block">Type of Feedback</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {feedbackTypes.map((ft) => (
@@ -112,29 +112,72 @@ export default function FeedbackPage() {
                     </div>
                   </div>
 
-                  {/* Rating */}
-                  <div className="mb-8">
-                    <label className="text-sm font-bold mb-3 block">How's your experience so far?</label>
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setRating(star)}
-                          className="p-1 transition-transform hover:scale-110 focus:outline-none"
-                        >
-                          <Star
-                            className={`w-8 h-8 ${
-                              star <= rating ? 'fill-primary text-primary' : 'text-muted stroke-2'
-                            }`}
-                          />
-                        </button>
-                      ))}
+                  {/* Rating & Attachment Row */}
+                  <div className="mb-6">
+                    <div className="flex flex-wrap items-center gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
+                      {/* Rating */}
+                      <div className="flex-1 min-w-[180px]">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2 block">How's your experience?</label>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setRating(star)}
+                              className="transition-transform hover:scale-110 focus:outline-none"
+                            >
+                              <Star
+                                className={`w-6 h-6 ${
+                                  star <= rating ? 'fill-primary text-primary' : 'text-muted-foreground/30 stroke-2'
+                                }`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Compact Attachment */}
+                      <div className="flex-1 min-w-[220px] sm:border-l sm:border-border sm:pl-4">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2 block">Attachment (Optional)</label>
+                        {!file ? (
+                          <label className="flex items-center gap-2 cursor-pointer group">
+                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-border group-hover:border-primary group-hover:bg-primary/5 transition-all">
+                                <Paperclip className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
+                                <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary">Attach Screenshot/PDF</span>
+                             </div>
+                             <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*,.pdf"
+                              onChange={(e) => {
+                                const selectedFile = e.target.files?.[0];
+                                if (selectedFile && selectedFile.size <= 10 * 1024 * 1024) {
+                                  setFile(selectedFile);
+                                } else if (selectedFile) {
+                                  alert('File size must be less than 10MB');
+                                }
+                              }}
+                            />
+                          </label>
+                        ) : (
+                          <div className="flex items-center gap-2 bg-background border border-border px-2 py-1 rounded-lg max-w-full">
+                            <Paperclip className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span className="text-xs font-medium truncate flex-1">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setFile(null)}
+                              className="p-1 hover:bg-destructive/10 rounded-md transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5 text-destructive" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Email */}
-                  <div className="mb-6">
+                  <div className="mb-5">
                     <label className="text-sm font-bold mb-2 block">
                       Email <span className="text-muted-foreground font-normal">(optional)</span>
                     </label>
@@ -151,7 +194,7 @@ export default function FeedbackPage() {
                   </div>
 
                   {/* Message */}
-                  <div className="mb-6">
+                  <div className="mb-5">
                     <label className="text-sm font-bold mb-2 block">Your Message</label>
                     <textarea
                       value={message}
@@ -162,59 +205,6 @@ export default function FeedbackPage() {
                     />
                   </div>
 
-                  {/* File Upload */}
-                  <div className="mb-8">
-                    <label className="text-sm font-bold mb-2 block">
-                      Attachment <span className="text-muted-foreground font-normal">(optional)</span>
-                    </label>
-                    
-                    {!file ? (
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-xl cursor-pointer hover:border-primary/50 transition-all bg-muted/20 hover:bg-muted/40">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Paperclip className="w-8 h-8 mb-2 text-muted-foreground" />
-                          <p className="mb-1 text-sm text-muted-foreground">
-                            <span className="font-semibold">Click to upload</span> or drag and drop
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            PNG, JPG, PDF up to 10MB
-                          </p>
-                        </div>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*,.pdf"
-                          onChange={(e) => {
-                            const selectedFile = e.target.files?.[0];
-                            if (selectedFile && selectedFile.size <= 10 * 1024 * 1024) {
-                              setFile(selectedFile);
-                            } else if (selectedFile) {
-                              alert('File size must be less than 10MB');
-                            }
-                          }}
-                        />
-                      </label>
-                    ) : (
-                      <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-muted/20">
-                        <Paperclip className="w-5 h-5 text-primary" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{file.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {(file.size / 1024).toFixed(1)} KB
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setFile(null)}
-                          className="p-1 hover:bg-destructive/10 rounded-lg transition-colors"
-                        >
-                          <X className="w-5 h-5 text-destructive" />
-                        </button>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Attach screenshots or files to help us understand your feedback better
-                    </p>
-                  </div>
 
                   <button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98]">
                     <Send className="w-5 h-5" />

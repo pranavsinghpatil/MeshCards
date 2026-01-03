@@ -169,7 +169,7 @@ const Studio = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationSuccess, setGenerationSuccess] = useState(false);
   const [cardCount, setCardCount] = useState(25);
-  const [aiModel, setAiModel] = useState("gemini-2.5-flash"); 
+  const [aiModel, setAiModel] = useState("gemini-2.0-flash"); 
   const [cardStyle, setCardStyle] = useState("qa");
   const [difficulty, setDifficulty] = useState("balanced");
   const [deckName, setDeckName] = useState("MeshCards");
@@ -599,12 +599,14 @@ const Studio = () => {
                     <div>
                         <label className="block text-sm font-medium mb-1">AI Model</label>
                         <div className="relative">
-                        <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-3 py-2 text-sm cursor-pointer">
-                            <option value="gemini-3-pro">Gemini 3 Pro (Best)</option>
-                            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                            <option value="gpt-4.1">GPT-4.1</option>
-                            <option value="claude-opus-4.5">Claude Opus 4.5</option>
+                        <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-3 py-2 text-sm cursor-pointer font-bold">
+                            <option value="gemini-3-pro">Gemini 3 Pro — Most Intelligent & Multimodal</option>
+                            <option value="gemini-3-flash">Gemini 3 Flash — Balanced, Fast & Scalable</option>
+                            <option value="gemini-2.5-pro">Gemini 2.5 Pro — Strong Reasoning & Versatile</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash — Best Performance & Low Latency</option>
+                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite — Lightweight & Efficient</option>
+                            <option value="gpt-4.1">GPT-4 Turbo (Gemini-Powered Premium)</option>
+                            <option value="claude-opus-4.5">Claude 3.5 (Gemini-Powered Premium)</option>
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
                         </div>

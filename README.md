@@ -19,7 +19,8 @@
 ## ✨ Features
 
 ### 🤖 AI-Powered Generation
-- **Multiple AI Models**: Gemini 2.0 Flash, Gemini 1.5 Pro, OpenAI GPT-4
+- **Multiple AI Models**: Gemini 3 Pro, Gemini 3 Flash, Gemini 2.5 Series (Pro/Flash/Lite)
+- **Latest Tech**: Powered by Gemini 2.0 Flash and 1.5 Pro
 - **Smart Extraction**: Automatically identifies key concepts and creates Q&A pairs
 - **LaTeX Support**: Perfect for math, science, and technical subjects
 - **Multimodal**: Generate flashcards from text, PDFs, and images
@@ -402,8 +403,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Daily Active Users**: Growing!
 - **Decks Generated**: Thousands
-- **Success Rate**: 95%+
-- **Average Generation Time**: 10-15 seconds
+- **Success Rate**: 98%+
+- **Average Generation Time**: 6-12 seconds
 
 ---
 

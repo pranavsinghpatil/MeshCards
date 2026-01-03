@@ -210,10 +210,10 @@ class JobQueue:
 job_queue = JobQueue(delay_between_jobs=6.0)  # 6 seconds between jobs
 
 # Cleanup task (run periodically)
-async def cleanup_task():
-    """Background task to cleanup old jobs"""
+async def cleanup_old_jobs_task():
+    """Background task to cleanup old jobs (completed/failed)"""
     while True:
         await asyncio.sleep(3600)  # Every hour
-        removed = await job_queue.cleanup_old_jobs()
+        removed = await job_queue.cleanup_old_jobs(max_age_hours=24)
         if removed > 0:
             print(f"Cleaned up {removed} old jobs")
