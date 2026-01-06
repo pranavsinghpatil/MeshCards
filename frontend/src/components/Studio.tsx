@@ -750,13 +750,22 @@ const Studio = () => {
                                 <option value="claude-opus-4.5">Claude 3.5 (Gemini-Powered Premium)</option>
                             </optgroup>
                             {issponsor && (
-                                <optgroup label="🌟 Premium Models - Large Selection Available! 💎">
-                                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B — Best Open-Source</option>
-                                    <option value="meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B — Most Powerful</option>
-                                    <option value="mistralai/mistral-large-2">Mistral Large 2 — European Excellence</option>
-                                    <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B — Long Context Master</option>
+                                <optgroup label="🌟 Premium Models (Sponsors Only) - Best Value! 💎">
+                                    {/* BEST & CHEAPEST - Recommended */}
+                                    <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B — Best Value! ⭐ ($0.35/M)</option>
+                                    <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 7B — Ultra Cheap! 💰 ($0.07/M)</option>
+                                    <option value="mistralai/mistral-small-2409">Mistral Small — Fast & Affordable ($0.20/M)</option>
+                                    
+                                    {/* Performance Options */}
+                                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B — Reliable ($0.60/M)</option>
+                                    <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B — Long Context ($0.60/M)</option>
+                                    <option value="mistralai/mistral-large-2">Mistral Large 2 — Premium ($2.40/M)</option>
+                                    
+                                    {/* Power Options */}
+                                    <option value="meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B — Most Powerful ($2.70/M)</option>
+                                    
                                     <option disabled>─────────────────────────</option>
-                                    <option disabled>💡 Request more models via feedback form!</option>
+                                    <option disabled>💡 Request more models via feedback!</option>
                                 </optgroup>
                             )}
                         </select>
