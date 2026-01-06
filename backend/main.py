@@ -85,6 +85,48 @@ def cleanup_file(path: str):
         logger.error(f"Cleaning up {path} failed: {e}")
 
 def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
+    """
+    Get API key based on provider and mode settings.
+    
+    For Gemini:
+    - BYOK mode: User MUST provide their own key
+    - Shared mode: Use system key first, fallback to user key
+    
+    For other providers: Always use system key or user-provided key
+    """
+    
+    # Special handling for Gemini based on mode
+    if provider == "gemini":
+        if settings.GEMINI_MODE == "byok":
+            # BYOK Mode: User MUST provide their own key
+            if user_key and user_key.strip():
+                return user_key
+            else:
+                raise ValueError(
+                    "BYOK_REQUIRED|"
+                    "This service requires you to use your own Gemini API key. "
+                    "Get a free key at https://aistudio.google.com/app/apikey"
+                )
+        elif settings.GEMINI_MODE == "shared":
+            # Shared Mode: Prefer user key if provided, otherwise use system key
+            if user_key and user_key.strip():
+                return user_key
+            
+            env_key = settings.GEMINI_API_KEY
+            if env_key:
+                return env_key
+            
+            raise ValueError("No Gemini API Key available. Please provide your own key.")
+        else:
+            logger.warning(f"Invalid GEMINI_MODE: {settings.GEMINI_MODE}. Defaulting to shared.")
+            # Default to shared mode behavior
+            if user_key and user_key.strip():
+                return user_key
+            if settings.GEMINI_API_KEY:
+                return settings.GEMINI_API_KEY
+            raise ValueError("No API Key found for Gemini.")
+    
+    # For other providers (OpenAI, Anthropic, Novita): Standard behavior
     # 1. User provided key (BYOK)
     if user_key and user_key.strip():
         return user_key
@@ -369,12 +411,26 @@ async def submit_job(
             detail="Unable to verify quota. Please try again later."
         )
     
-    # 3. Check if user is trying to use premium models without being a sponsor
-    if provider == "novita" and not check_sponsor(user.id):
-        raise HTTPException(
-            status_code=403,
-            detail="Premium AI models (Llama, Mistral, Qwen, and more) are only available to sponsors. Support the project at https://buymeacoffee.com/htclodkzgo to unlock access to a large selection of premium models! You can also request specific models via the feedback form."
-        )
+    # 3. Check Novita access based on access mode setting
+    if provider == "novita":
+        if settings.NOVITA_ACCESS_MODE == "sponsors_only":
+            # Strict mode: Only sponsors can use Novita
+            if not check_sponsor(user.id):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Premium AI models (Llama, Mistral, Qwen, and more) are only available to sponsors. Support the project at https://buymeacoffee.com/htclodkzgo to unlock access to a large selection of premium models! You can also request specific models via the feedback form."
+                )
+        elif settings.NOVITA_ACCESS_MODE == "all":
+            # Open mode: Everyone can use Novita (no check needed)
+            pass
+        else:
+            # Invalid mode - log and default to sponsors_only
+            logger.warning(f"Invalid NOVITA_ACCESS_MODE: {settings.NOVITA_ACCESS_MODE}. Defaulting to sponsors_only.")
+            if not check_sponsor(user.id):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Premium AI models are restricted. Please contact support."
+                )
 
     if not files and not text:
         raise HTTPException(status_code=400, detail="Either file or text must be provided")

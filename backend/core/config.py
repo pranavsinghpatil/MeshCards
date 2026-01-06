@@ -11,7 +11,14 @@ class Settings(BaseSettings):
     # API Keys (System Level - for free tier)
     GEMINI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
-    NOVITA_API_KEY: Optional[str] = None  # For sponsors only
+    NOVITA_API_KEY: Optional[str] = None
+    
+    # Access Control Settings
+    # Novita Access: "all" = everyone can use, "sponsors_only" = only sponsors
+    NOVITA_ACCESS_MODE: str = "sponsors_only"
+    
+    # Gemini Mode: "shared" = use system key (with quotas), "byok" = users must provide own key
+    GEMINI_MODE: str = "shared"
     
     # Sponsor Settings (Buy Me a Coffee Integration)
     BUYMEACOFFEE_WEBHOOK_SECRET: Optional[str] = None
