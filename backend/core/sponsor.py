@@ -59,7 +59,7 @@ class SponsorChecker:
             
             response = (sb.from_('sponsors')
                 .select('tier, is_active')
-                .eq('user_id', user_id')
+                .eq('user_id', user_id)
                 .single())
             
             data = response.data
