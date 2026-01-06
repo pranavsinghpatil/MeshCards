@@ -1,5 +1,5 @@
 from typing import Optional
-from backend.core.supabase import get_supabase_client
+from backend.core.supabase import get_supabase
 from backend.core.logging import logger
 
 class SponsorChecker:
@@ -22,7 +22,7 @@ class SponsorChecker:
         Returns True if sponsor, False otherwise.
         """
         try:
-            sb = get_supabase_client()
+            sb = get_supabase()
             if not sb:
                 logger.warning("Supabase not configured, sponsor check disabled")
                 return False
@@ -53,7 +53,7 @@ class SponsorChecker:
         Returns tier name or None if not a sponsor.
         """
         try:
-            sb = get_supabase_client()
+            sb = get_supabase()
             if not sb:
                 return None
             
