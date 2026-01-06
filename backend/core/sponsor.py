@@ -28,7 +28,10 @@ class SponsorChecker:
                 return False
             
             # Query sponsors table
-            response = sb.from_('sponsors')\                .select('is_active')\                .eq('user_id', user_id)\                .single()
+            response = (sb.from_('sponsors')
+                .select('is_active')
+                .eq('user_id', user_id)
+                .single())
             
             data = response.data
             
@@ -54,7 +57,10 @@ class SponsorChecker:
             if not sb:
                 return None
             
-            response = sb.from_('sponsors')\                .select('tier, is_active')\                .eq('user_id', user_id)\                .single()
+            response = (sb.from_('sponsors')
+                .select('tier, is_active')
+                .eq('user_id', user_id')
+                .single())
             
             data = response.data
             
