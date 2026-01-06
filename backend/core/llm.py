@@ -6,7 +6,8 @@ from typing import Dict, Any
 
 import time
 import random
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from openai import OpenAI
 from anthropic import Anthropic
 
@@ -80,7 +81,8 @@ class LLMClient(ABC):
 
 class GeminiClient(LLMClient):
     def __init__(self, api_key: str, model_name: str = "gemini-2.5-pro"):
-        genai.configure(api_key=api_key)
+        # Initialize the new genai client
+        self.client = genai.Client(api_key=api_key)
         
         # Map user-facing model names to actual API models
         # This prevents 404s while allowing the UI to show requested names
@@ -104,11 +106,7 @@ class GeminiClient(LLMClient):
         }
         
         # Use mapped model if exists, otherwise try the raw string (fallback)
-        real_model_name = model_map.get(model_name, model_name)
-        
-
-
-        self.model = genai.GenerativeModel(real_model_name)
+        self.model_name = model_map.get(model_name, model_name)
 
     def generate_json(self, prompt: Any) -> Dict[str, Any]:
         # Prepare content for Gemini
@@ -139,10 +137,13 @@ class GeminiClient(LLMClient):
         
         for attempt in range(max_retries + 1):
             try:
-                # Gemini generate_content accepts a list of parts (str or PIL.Image)
-                response = self.model.generate_content(
-                    content_parts,
-                    generation_config={"response_mime_type": "application/json"}
+                # Use new genai API: client.models.generate_content
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=content_parts,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json"
+                    )
                 )
                 return safe_json_loads(response.text)
             except Exception as e:
