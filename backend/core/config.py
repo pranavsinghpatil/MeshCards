@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     # API Keys (System Level - for free tier)
     GEMINI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
+    NOVITA_API_KEY: Optional[str] = None  # For sponsors only
+    
+    # Sponsor Settings (Buy Me a Coffee Integration)
+    BUYMEACOFFEE_WEBHOOK_SECRET: Optional[str] = None
     
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True

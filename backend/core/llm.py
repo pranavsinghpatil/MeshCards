@@ -111,9 +111,6 @@ class GeminiClient(LLMClient):
         self.model = genai.GenerativeModel(real_model_name)
 
     def generate_json(self, prompt: Any) -> Dict[str, Any]:
-        max_retries = 3
-        base_delay = 1
-        
         # Prepare content for Gemini
         # If prompt is a string, it's just text.
         # If prompt is a list, it might contain text strings or image paths/dicts.
@@ -137,8 +134,8 @@ class GeminiClient(LLMClient):
                     content_parts.append(str(part))
         
         
-        max_retries = 5  # Increased from 3
-        base_delay = 5   # Increased from 2 seconds
+        max_retries = 2  # Only 2 attempts, then ask for user key
+        base_delay = 5
         
         for attempt in range(max_retries + 1):
             try:
@@ -155,17 +152,17 @@ class GeminiClient(LLMClient):
                 
                 if is_rate_limit:
                     if attempt < max_retries:
-                        # Exponential backoff: 5s, 10s, 20s, 40s, 80s
+                        # Exponential backoff: 5s, 10s
                         sleep_time = base_delay * (2 ** attempt) + random.uniform(0, 2)
                         print(f"⏳ API rate limit hit. Retrying in {sleep_time:.1f}s... (Attempt {attempt+1}/{max_retries})")
                         time.sleep(sleep_time)
                         continue
                     else:
-                        # All retries exhausted
+                        # After 2 retries, raise special exception to prompt for user API key
                         raise Exception(
-                            "API rate limit exceeded after multiple retries. "
-                            "Please try again in a few minutes. "
-                            "The service may be experiencing high load."
+                            "API_LIMIT_EXCEEDED|"
+                            "Gemini API rate limit exceeded. "
+                            "Please provide your own API key to continue, or wait a few minutes and try again."
                         )
                 
                 raise e # Re-raise if not a rate limit error
@@ -215,7 +212,40 @@ class AnthropicClient(LLMClient):
 #           },
 #         ], format='json')
 #         return safe_json_loads(response['message']['content'])
-# 
+
+class NovitaClient(LLMClient):
+    """
+    Novita AI Client - Premium models for sponsors only.
+    Supports: Llama, Mistral, Qwen, and other open-source models.
+    """
+    def __init__(self, api_key: str, model_name: str = "meta-llama/llama-3.1-70b-instruct"):
+        from novita_client import NovitaClient as NovitaSDK
+        self.client = NovitaSDK(api_key)
+        self.model_name = model_name
+    
+    def generate_json(self, prompt: Any) -> Dict[str, Any]:
+        # Convert multimodal prompt to text-only (Novita doesn't support vision yet)
+        text_prompt = prompt if isinstance(prompt, str) else " ".join(
+            [p if isinstance(p, str) else str(p) for p in prompt]
+        )
+        
+        try:
+            response = self.client.chat_completion(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": "You are a helpful AI assistant. Always respond with valid JSON."},
+                    {"role": "user", "content": text_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=4096
+            )
+            
+            content = response.choices[0].message.content
+            return safe_json_loads(content)
+            
+        except Exception as e:
+            raise ValueError(f"Novita API error: {str(e)}")
+
 def get_llm_client(provider: str, api_key: str = None, model_name: str = None) -> LLMClient:
     provider = provider.lower()
     if provider == "gemini":
@@ -224,7 +254,10 @@ def get_llm_client(provider: str, api_key: str = None, model_name: str = None) -
         return OpenAIClient(api_key)
     elif provider == "anthropic":
         return AnthropicClient(api_key)
+    elif provider == "novita":
+        return NovitaClient(api_key, model_name or "meta-llama/llama-3.1-70b-instruct")
 #     elif provider == "ollama":
 #         return OllamaClient(model_name or "llama3")
     else:
         raise ValueError(f"Unsupported provider: {provider}")
+

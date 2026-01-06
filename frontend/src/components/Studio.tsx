@@ -8,6 +8,7 @@ import { getApiUrl } from "@/lib/api";
 import Header from "./Header";
 import SimpleFooter from "./SimpleFooter";
 import AdComponent from "./AdComponent";
+import { ApiKeyDialog } from "./ApiKeyDialog";
 
 const LoadingOverlay = ({ statusMessage }: { statusMessage?: string }) => {
     const [text, setText] = useState("Initializing AI...");
@@ -177,6 +178,10 @@ const Studio = () => {
   const [dailyCount, setDailyCount] = useState<number | null>(null);
   const [lastJobId, setLastJobId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [userApiKey, setUserApiKey] = useState<string>("");
+  const [currentProvider, setCurrentProvider] = useState<string>("gemini");
+  const [issponsor, setIssponsor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -184,9 +189,21 @@ const Studio = () => {
         const fetchProfile = async () => {
             const sb = getSupabase();
             if(!sb) return;
+            
+            // Fetch daily count
             const { data } = await sb.from('profiles').select('daily_count').eq('id', session.user.id).single();
             if(data) {
                 setDailyCount(data.daily_count);
+            }
+            
+            // Check sponsor status
+            const { data: sponsorData } = await sb.from('sponsors')
+                .select('is_active')
+                .eq('user_id', session.user.id)
+                .single();
+            
+            if (sponsorData?.is_active) {
+                setIssponsor(true);
             }
         };
         fetchProfile();
@@ -290,6 +307,13 @@ const Studio = () => {
           
           if (data.status === 'completed') return true;
           
+          // Check for API limit exceeded - prompt for user key
+          if (data.status === 'api_limit_exceeded') {
+              setStatusMessage("⚠️ API Limit Reached");
+              setShowApiKeyDialog(true);
+              throw new Error("API_LIMIT_PROMPT"); // Special error to stop polling
+          }
+          
           if (data.status === 'failed') {
               const error = data.error || "Generation failed";
               // Check if it's a quota error
@@ -358,6 +382,12 @@ const Studio = () => {
           }
 
       } catch (error: any) {
+          // Don't show error toast if it's just prompting for API key
+          if (error.message === "API_LIMIT_PROMPT") {
+              // Keep generating state, wait for user to provide key
+              return;
+          }
+          
           let title = "Error";
           let description = error.message || "Something went wrong";
           if (description.includes("| Title:")) {
@@ -371,9 +401,13 @@ const Studio = () => {
               }
           }
           toast({ title: title, description: description, variant: "destructive" });
-      } finally {
           setIsGenerating(false);
-          localStorage.removeItem("mesh_active_job");
+      } finally {
+          // Don't clear these if waiting for API key
+          if (!showApiKeyDialog) {
+              setIsGenerating(false);
+              localStorage.removeItem("mesh_active_job");
+          }
       }
   };
 
@@ -397,11 +431,17 @@ const Studio = () => {
         uploadedFiles.forEach(file => { payload.append("files", file); });
 
         // Use selected model directly
-        payload.append("provider", "gemini"); 
+        payload.append("provider", currentProvider); 
         payload.append("model", aiModel);
         payload.append("max_cards", cardCount.toString());
         payload.append("difficulty", difficulty);
         payload.append("style", cardStyle);
+        
+        // Add user API key if provided
+        if (userApiKey) {
+            payload.append("api_key", userApiKey);
+        }
+        
         // Default deck name to first file if present
         const defaultName = uploadedFiles.length > 0 ? uploadedFiles[0].name.split('.')[0] : "Generated Deck";
         const finalName = deckName || defaultName;
@@ -444,6 +484,20 @@ const Studio = () => {
     setText("");
     setUploadedFiles([]);
     setGenerationSuccess(false);
+  };
+  
+  const handleApiKeySubmit = async (apiKey: string) => {
+      setUserApiKey(apiKey);
+      setShowApiKeyDialog(false);
+      
+      toast({
+          title: "API Key Received",
+          description: "Retrying generation with your key...",
+          duration: 3000
+      });
+      
+      // Retry generation with user's key
+      await handleGenerate();
   };
   
   // Restore active job on mount
@@ -589,6 +643,33 @@ const Studio = () => {
                     <Settings className="w-5 h-5 text-primary" />
                     Configuration
                     </h2>
+                    
+                    {/* Sponsor Thank You Badge */}
+                    {issponsor && (
+                        <div className="mb-6 relative overflow-hidden rounded-xl border-2 border-primary/30 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 p-4">
+                            {/* Animated background effect */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 animate-pulse" />
+                            
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="flex items-center gap-1">
+                                        <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                                        <Heart className="w-4 h-4 text-pink-500 fill-pink-500 animate-pulse" />
+                                    </div>
+                                    <span className="text-sm font-black uppercase tracking-wider bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                                        Premium Sponsor
+                                    </span>
+                                    <span className="text-xl">💎</span>
+                                </div>
+                                <p className="text-sm font-semibold text-foreground mb-1">
+                                    Thank you for supporting MeshCards! 🎉
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    You have unlimited access to a large selection of premium AI models (Llama, Mistral, Qwen, and more!) plus priority support. Need a specific model? Request it via the feedback form!
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-4">
                     <div>
@@ -599,14 +680,40 @@ const Studio = () => {
                     <div>
                         <label className="block text-sm font-medium mb-1">AI Model</label>
                         <div className="relative">
-                        <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-3 py-2 text-sm cursor-pointer font-bold">
-                            <option value="gemini-3-pro">Gemini 3 Pro — Most Intelligent & Multimodal</option>
-                            <option value="gemini-3-flash">Gemini 3 Flash — Balanced, Fast & Scalable</option>
-                            <option value="gemini-2.5-pro">Gemini 2.5 Pro — Strong Reasoning & Versatile</option>
-                            <option value="gemini-2.5-flash">Gemini 2.5 Flash — Best Performance & Low Latency</option>
-                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite — Lightweight & Efficient</option>
-                            <option value="gpt-4.1">GPT-4 Turbo (Gemini-Powered Premium)</option>
-                            <option value="claude-opus-4.5">Claude 3.5 (Gemini-Powered Premium)</option>
+                        <select 
+                            value={aiModel} 
+                            onChange={(e) => {
+                                const selectedModel = e.target.value;
+                                setAiModel(selectedModel);
+                                
+                                // Update provider based on model selection
+                                if (selectedModel.startsWith('llama') || selectedModel.startsWith('mistral') || selectedModel.startsWith('qwen')) {
+                                    setCurrentProvider('novita');
+                                } else {
+                                    setCurrentProvider('gemini');
+                                }
+                            }} 
+                            className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-3 py-2 text-sm cursor-pointer font-bold"
+                        >
+                            <optgroup label="Gemini (Free)">
+                                <option value="gemini-3-pro">Gemini 3 Pro — Most Intelligent & Multimodal</option>
+                                <option value="gemini-3-flash">Gemini 3 Flash — Balanced, Fast & Scalable</option>
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro — Strong Reasoning & Versatile</option>
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash — Best Performance & Low Latency</option>
+                                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite — Lightweight & Efficient</option>
+                                <option value="gpt-4.1">GPT-4 Turbo (Gemini-Powered Premium)</option>
+                                <option value="claude-opus-4.5">Claude 3.5 (Gemini-Powered Premium)</option>
+                            </optgroup>
+                            {issponsor && (
+                                <optgroup label="🌟 Premium Models - Large Selection Available! 💎">
+                                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B — Best Open-Source</option>
+                                    <option value="meta-llama/llama-3.1-405b-instruct">Llama 3.1 405B — Most Powerful</option>
+                                    <option value="mistralai/mistral-large-2">Mistral Large 2 — European Excellence</option>
+                                    <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B — Long Context Master</option>
+                                    <option disabled>─────────────────────────</option>
+                                    <option disabled>💡 Request more models via feedback form!</option>
+                                </optgroup>
+                            )}
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
                         </div>
@@ -656,12 +763,24 @@ const Studio = () => {
                     <div className="mt-6 pt-4 border-t border-border">
                     {dailyCount !== null && (
                         <div className="text-center text-sm font-medium mb-2">
-                            <span className={`${dailyCount >= 2 ? "text-red-500" : "text-primary"}`}>
-                                Daily Limit: {Math.max(0, 2 - dailyCount)} / 2 remaining
-                            </span>
+                            {issponsor ? (
+                                <div className="space-y-1">
+                                    <span className="text-primary flex items-center justify-center gap-2">
+                                        <Sparkles className="w-4 h-4" />
+                                        Sponsor Limit: {Math.max(0, 2 - dailyCount)} / 2 free tier remaining
+                                    </span>
+                                    <p className="text-xs text-muted-foreground">
+                                        As a sponsor, feel free to use your own API key for unlimited generations! 🚀
+                                    </p>
+                                </div>
+                            ) : (
+                                <span className={`${dailyCount >= 2 ? "text-red-500" : "text-primary"}`}>
+                                    Daily Limit: {Math.max(0, 2 - dailyCount)} / 2 remaining
+                                </span>
+                            )}
                         </div>
                     )}
-                    <Button onClick={handleGenerate} disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= 2)} className="w-full bg-foreground text-background py-3 rounded-xl font-bold disabled:opacity-50">
+                    <Button onClick={handleGenerate} disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= 2 && !issponsor)} className="w-full bg-foreground text-background py-3 rounded-xl font-bold disabled:opacity-50">
                         {isGenerating ? <><RefreshCw className="mr-2 animate-spin" /> Generating...</> : "Generate Cards"}
                     </Button>
                     </div>
@@ -673,6 +792,18 @@ const Studio = () => {
         </div>
       </main>
       <SimpleFooter />
+      
+      {/* API Key Dialog */}
+      <ApiKeyDialog
+        open={showApiKeyDialog}
+        onClose={() => {
+            setShowApiKeyDialog(false);
+            setIsGenerating(false);
+            localStorage.removeItem("mesh_active_job");
+        }}
+        onSubmit={handleApiKeySubmit}
+        provider={currentProvider}
+      />
     </div>
   );
 };

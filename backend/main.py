@@ -39,6 +39,7 @@ from backend.core.auth import get_current_user, check_quota, increment_quota
 from backend.core.error_reporter import report_error
 from backend.core.storage import get_deck_storage
 from backend.core.job_queue import job_queue
+from backend.core.sponsor import check_sponsor
 
 # Setup Rate Limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -214,6 +215,15 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
                     logger.warning(f"Failed to cleanup image file: {e}")
         
     except Exception as e:
+        # Check if it's an API limit error that requires user key
+        error_msg = str(e)
+        if "API_LIMIT_EXCEEDED" in error_msg:
+            # Special handling for API limit - ask user for their own key
+            jobs[job_id]["status"] = "api_limit_exceeded"
+            jobs[job_id]["error"] = error_msg.split("|")[1] if "|" in error_msg else error_msg
+            logger.warning(f"Job {job_id}: API limit exceeded, user key required")
+            return
+        
         # Log full error to GitHub with user context
         simple_error = log_error_to_github(
             e, 
@@ -349,6 +359,13 @@ async def submit_job(
         raise HTTPException(
             status_code=500,
             detail="Unable to verify quota. Please try again later."
+        )
+    
+    # 3. Check if user is trying to use premium models without being a sponsor
+    if provider == "novita" and not check_sponsor(user.id):
+        raise HTTPException(
+            status_code=403,
+            detail="Premium AI models (Llama, Mistral, Qwen, and more) are only available to sponsors. Support the project at https://buymeacoffee.com/htclodkzgo to unlock access to a large selection of premium models! You can also request specific models via the feedback form."
         )
 
     if not files and not text:
