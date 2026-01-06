@@ -322,6 +322,14 @@ def get_config():
         "supabase_anon_key": settings.SUPABASE_KEY
     }
 
+# Health check endpoints for Leapcell
+@app.get("/kaithheathcheck")
+@app.get("/kaithhealthcheck")
+@app.get("/health")
+def health_check():
+    """Health check endpoint for deployment platforms."""
+    return {"status": "ok", "service": "meshcards"}
+
 @app.post("/generate")
 @limiter.limit(settings.RATE_LIMIT_FREE)
 async def submit_job(
