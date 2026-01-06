@@ -355,24 +355,33 @@ const Studio = () => {
 
           await pollJob(jobId);
 
-          // Success Logic
+          // Success Logic - Only download if job actually succeeded
           
-          // Check if already downloaded to prevent duplicates on reload/nav
-          if (!localStorage.getItem(`mesh_downloaded_${jobId}`)) {
-              toast({ title: "Success!", description: "Deck generated successfully. Downloading..." });
-              
-              const downloadLink = document.createElement('a');
-              downloadLink.href = getApiUrl(`/download/${jobId}`);
-              document.body.appendChild(downloadLink);
-              downloadLink.click();
-              document.body.removeChild(downloadLink);
-              
-              localStorage.setItem(`mesh_downloaded_${jobId}`, "true");
-          } else {
-               toast({ title: "Ready!", description: "Your deck is ready." });
+          // Check job status one more time before downloading
+          const finalStatus = await fetch(getApiUrl(`/status/${jobId}`));
+          const finalData = await finalStatus.json();
+          
+          if (finalData.status === 'completed') {
+              // Check if already downloaded to prevent duplicates on reload/nav
+              if (!localStorage.getItem(`mesh_downloaded_${jobId}`)) {
+                  toast({ title: "Success!", description: "Deck generated successfully. Downloading..." });
+                  
+                  const downloadLink = document.createElement('a');
+                  downloadLink.href = getApiUrl(`/download/${jobId}`);
+                  document.body.appendChild(downloadLink);
+                  downloadLink.click();
+                  document.body.removeChild(downloadLink);
+                  
+                  localStorage.setItem(`mesh_downloaded_${jobId}`, "true");
+              } else {
+                   toast({ title: "Ready!", description: "Your deck is ready." });
+              }
           }
           
           setGenerationSuccess(true);
+          
+          // Clear active job marker
+          localStorage.removeItem("mesh_active_job");
           
           // Update Quota
           const sb = getSupabase();
@@ -516,7 +525,8 @@ const Studio = () => {
     }
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-        if (localStorage.getItem("mesh_active_job")) {
+        // Only warn if actually generating (not just any active job)
+        if (isGenerating) {
             e.preventDefault();
             e.returnValue = ""; // Chrome requires this
         }
