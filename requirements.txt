@@ -9,6 +9,6 @@ genanki==0.13.0
 python-dotenv==1.0.1
 openai
 anthropic
-google-genai
+google-generativeai
 Pillow
 python-multipart
