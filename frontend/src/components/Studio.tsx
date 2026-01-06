@@ -182,6 +182,8 @@ const Studio = () => {
   const [userApiKey, setUserApiKey] = useState<string>("");
   const [currentProvider, setCurrentProvider] = useState<string>("gemini");
   const [issponsor, setIssponsor] = useState(false);
+  const [geminiMode, setGeminiMode] = useState<string>("shared"); // "shared" or "byok"
+  const [novitaAccessMode, setNovitaAccessMode] = useState<string>("sponsors_only"); // "all" or "sponsors_only"
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -209,6 +211,27 @@ const Studio = () => {
         fetchProfile();
     }
   }, [session]);
+
+  // Fetch access control config on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(getApiUrl('/api/config'));
+        if (response.ok) {
+          const config = await response.json();
+          if (config.gemini_mode) {
+            setGeminiMode(config.gemini_mode);
+          }
+          if (config.novita_access_mode) {
+            setNovitaAccessMode(config.novita_access_mode);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch config:", error);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -429,6 +452,18 @@ const Studio = () => {
     if (!text && uploadedFiles.length === 0) {
       toast({ title: "No content", description: "Please paste text or upload a file first.", variant: "destructive" });
       return;
+    }
+
+    // Check for BYOK mode - prompt for API key if using Gemini in BYOK mode
+    if (currentProvider === "gemini" && geminiMode === "byok" && !userApiKey) {
+        setCurrentProvider("gemini");
+        setShowApiKeyDialog(true);
+        toast({ 
+            title: "API Key Required", 
+            description: "This service requires you to use your own Gemini API key.",
+            variant: "default"
+        });
+        return;
     }
 
     setIsGenerating(true);
