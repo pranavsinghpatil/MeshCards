@@ -475,7 +475,7 @@ const Studio = () => {
         const { job_id } = await res.json();
         
         toast({ 
-            title: "Started! ⚠️ Keep Tab Open", 
+            title: "Started! Keep Tab Open", 
             description: "Large files take time. Switching pages might interrupt progress.",
             duration: 6000 
         });

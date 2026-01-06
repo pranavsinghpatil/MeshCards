@@ -361,7 +361,10 @@ def get_config():
         "env": settings.ENV,
         # Frontend needs Supabase Config for Auth
         "supabase_url": settings.SUPABASE_URL,
-        "supabase_anon_key": settings.SUPABASE_KEY
+        "supabase_anon_key": settings.SUPABASE_KEY,
+        # Access Control Settings (NEW)
+        "novita_access_mode": settings.NOVITA_ACCESS_MODE,
+        "gemini_mode": settings.GEMINI_MODE
     }
 
 # Health check endpoints for Leapcell
