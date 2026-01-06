@@ -6,8 +6,7 @@ from typing import Dict, Any
 
 import time
 import random
-from google import genai
-from google.genai import types
+import genai
 from openai import OpenAI
 from anthropic import Anthropic
 
@@ -141,7 +140,7 @@ class GeminiClient(LLMClient):
                 response = self.client.models.generate_content(
                     model=self.model_name,
                     contents=content_parts,
-                    config=types.GenerateContentConfig(
+                    config=genai.types.GenerateContentConfig(
                         response_mime_type="application/json"
                     )
                 )
