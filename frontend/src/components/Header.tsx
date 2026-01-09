@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Heart, ChevronDown, Settings } from "lucide-react";
+import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Heart, ChevronDown, Settings, Check } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTheme, themes } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
@@ -98,7 +98,29 @@ const Header = () => {
                     MeshCards is a labor of love, designed to help students and professionals learn faster. 
                     Running the AI models and servers costs money. 
                   </p>
-                  <p className="font-medium">
+                  
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 my-2 space-y-3">
+                    <p className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      Sponsor Perks
+                    </p>
+                    <ul className="space-y-2">
+                        <li className="text-sm flex items-start gap-2">
+                            <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                            <span><strong>10 Decks / day</strong> (5x more than free)</span>
+                        </li>
+                        <li className="text-sm flex items-start gap-2">
+                            <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                            <span><strong>Premium Models</strong> (Llama 3.3, Mistral, Qwen)</span>
+                        </li>
+                        <li className="text-sm flex items-start gap-2">
+                            <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                            <span><strong>Automated Sync</strong> (Instant unlock on support)</span>
+                        </li>
+                    </ul>
+                  </div>
+
+                  <p className="font-medium text-sm">
                     If you find this tool useful, please consider buying me a coffee! ☕
                   </p>
                 </div>

@@ -40,6 +40,8 @@ from backend.core.error_reporter import report_error
 from backend.core.storage import get_deck_storage
 from backend.core.job_queue import job_queue
 from backend.core.sponsor import check_sponsor
+from backend.core.auth import get_admin_stats
+from backend.core.webhook_handlers import handle_bmc_webhook, handle_github_webhook
 
 # Setup Rate Limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -439,7 +441,12 @@ async def submit_job(
             if not check_sponsor(user.id):
                 raise HTTPException(
                     status_code=403,
-                    detail="Premium AI models (Llama, Mistral, Qwen, and more) are only available to sponsors. Support the project at https://buymeacoffee.com/htclodkzgo to unlock access to a large selection of premium models! Alternatively, add your own Novita API key to use these models without a sponsorship."
+                    detail=(
+                        "🌟 Premium AI models (Llama 3.3, Mistral, Qwen) are available to our Sponsors! 💎\n\n"
+                        "Support the project at https://buymeacoffee.com/htclodkzgo to unlock restricted models "
+                        "and get a 10x higher daily limit (10 decks/day).\n\n"
+                        "Alternatively, provide your own Novita API key in 'API Settings' to use these models directly."
+                    )
                 )
         elif settings.NOVITA_ACCESS_MODE == "all":
             # Open mode: Everyone can use Novita (no check needed)
@@ -602,13 +609,47 @@ def download_deck(job_id: str, background_tasks: BackgroundTasks):
     # Job cleanup is handled manually or by timeout, NOT on first download
     # if job_id in jobs:
     #     del jobs[job_id]
-    
     logger.info(f"Serving download for Job {job_id}")
     return FileResponse(
         file_path, 
         media_type="application/octet-stream", 
         filename=filename
     )
+
+# --- ADMIN & WEBHOOK ROUTES ---
+
+@app.get("/api/admin/stats")
+async def admin_stats(x_admin_key: Optional[str] = Header(None)):
+    """
+    Admin-only endpoint to view application usage stats.
+    """
+    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    
+    return await get_admin_stats()
+
+@app.post("/api/webhooks/bmc")
+async def bmc_webhook(request: Request):
+    """
+    Buy Me A Coffee Webhook for automated sponsor sync.
+    """
+    # Verify secret if provided
+    signature = request.headers.get("X-Bmc-Signature")
+    # if settings.BUYMEACOFFEE_WEBHOOK_SECRET and signature != settings.BUYMEACOFFEE_WEBHOOK_SECRET:
+    #     raise HTTPException(status_code=403, detail="Invalid signature")
+        
+    payload = await request.json()
+    success = await handle_bmc_webhook(payload)
+    return {"status": "success" if success else "failed"}
+
+@app.post("/api/webhooks/github")
+async def github_webhook(request: Request):
+    """
+    GitHub Sponsors Webhook for automated sponsor sync.
+    """
+    payload = await request.json()
+    success = await handle_github_webhook(payload)
+    return {"status": "success" if success else "failed"}
 
 # Mount static files - MUST BE LAST
 # Mount static files - MUST BE LAST

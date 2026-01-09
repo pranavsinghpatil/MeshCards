@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, Header
 from typing import Optional
 from backend.core.supabase import get_supabase
 from backend.core.logging import logger
+from backend.core.sponsor import check_sponsor
 from datetime import datetime, timezone
 import os
 
@@ -86,16 +87,21 @@ def check_quota(user_id: str):
             logger.info(f"Quota reset for user {user_id} - New day in IST: {today_ist}")
             return  # Quota reset, allow generation
         
+        # Determine user limit based on sponsor status
+        is_user_sponsor = check_sponsor(user_id)
+        daily_limit = 10 if is_user_sponsor else 2
+        
         # Check if quota exceeded (STRICT ENFORCEMENT)
-        if count >= 2:
+        if count >= daily_limit:
             # Calculate time until next reset (12 AM IST)
             tomorrow_ist = now_ist.date() + timedelta(days=1)
             next_reset = datetime.combine(tomorrow_ist, datetime.min.time()).replace(tzinfo=IST)
             hours_until_reset = int((next_reset - now_ist).total_seconds() / 3600)
             
+            sponsor_msg = "Sponsors get 10 decks/day!" if not is_user_sponsor else ""
             raise HTTPException(
                 status_code=429, 
-                detail=f"Daily quota exceeded ({count}/2 decks). Resets in ~{hours_until_reset} hours at 12 AM IST."
+                detail=f"Daily quota exceeded ({count}/{daily_limit} decks). {sponsor_msg} Resets in ~{hours_until_reset} hours at 12 AM IST."
             )
                 
     except HTTPException:
@@ -175,8 +181,39 @@ def increment_quota(user_id: str):
                 supabase.table('profiles').update({
                     'daily_count': new_count
                 }).eq('id', user_id).execute()
-                logger.info(f"Quota incremented to {new_count}/2 for user {user_id}")
+                logger.info(f"Quota incremented to {new_count} for user {user_id}")
     except Exception as e:
         # Log but don't fail the request since deck was already generated
         logger.error(f"Failed to increment quota for user {user_id}: {e}")
+
+async def get_admin_stats():
+    """
+    Get global statistics for the admin dashboard.
+    """
+    supabase = get_supabase()
+    if not supabase:
+        return {"error": "Supabase not configured"}
+        
+    try:
+        # Get total users
+        users = supabase.table('profiles').select('id', count='exact').execute()
+        total_users = users.count if users.count is not None else 0
+        
+        # Get total sponsors
+        sponsors = supabase.table('sponsors').select('id', count='exact').eq('is_active', True).execute()
+        total_sponsors = sponsors.count if sponsors.count is not None else 0
+        
+        # Get total decks generated today (sum of daily_count)
+        decks = supabase.table('profiles').select('daily_count').execute()
+        total_today = sum([d.get('daily_count', 0) for d in decks.data]) if decks.data else 0
+        
+        return {
+            "total_users": total_users,
+            "total_active_sponsors": total_sponsors,
+            "total_decks_today": total_today,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch admin stats: {e}")
+        return {"error": str(e)}
 

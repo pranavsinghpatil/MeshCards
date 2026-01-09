@@ -20,8 +20,10 @@ class Settings(BaseSettings):
     # Gemini Mode: "shared" = use system key (with quotas), "byok" = users must provide own key
     GEMINI_MODE: str = "shared"
     
-    # Sponsor Settings (Buy Me a Coffee Integration)
+    # Sponsor Settings (Buy Me a Coffee & GitHub Integration)
     BUYMEACOFFEE_WEBHOOK_SECRET: Optional[str] = None
+    GITHUB_WEBHOOK_SECRET: Optional[str] = None
+    ADMIN_KEY: Optional[str] = "admin123" # Secure this in prod!
     
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True

@@ -12,6 +12,7 @@ import FeedbackPage from "./pages/FeedbackPage";
 import GuidePage from "./pages/GuidePage";
 import LegalPage from "./pages/LegalPage";
 import MaintenancePage from "./pages/MaintenancePage";
+import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 
@@ -67,6 +68,7 @@ const App = () => {
                   <Route path="/feedback" element={<FeedbackPage />} />
                   <Route path="/guide" element={<GuidePage />} />
                   <Route path="/legal" element={<LegalPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
                   <Route path="*" element={<NotFound />} />
               </Routes>
               </BrowserRouter>

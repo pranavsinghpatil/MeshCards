@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, FileText, X, Download, RefreshCw, ChevronDown, Copy, Check, Settings, Sparkles, BookOpen, ExternalLink, ArrowRight, Heart, ShieldCheck } from "lucide-react";
+import { Upload, FileText, X, Download, RefreshCw, ChevronDown, Copy, Check, Settings, Sparkles, BookOpen, ExternalLink, ArrowRight, Heart, ShieldCheck, Zap, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -172,7 +172,7 @@ const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId:
 };
 
 const Studio = () => {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [text, setText] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -209,7 +209,7 @@ const Studio = () => {
             // Check sponsor status - handled safely
             try {
                 const { data: sponsorData, error: sponsorError } = await sb.from('sponsors')
-                    .select('is_active')
+                    .select('is_active, tier')
                     .eq('user_id', session.user.id)
                     .maybeSingle();
                 
@@ -729,18 +729,18 @@ const Studio = () => {
                                 <div className="flex items-center gap-2 mb-2">
                                     <div className="flex items-center gap-1">
                                         <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                                        <Heart className="w-4 h-4 text-pink-500 fill-pink-500 animate-pulse" />
+                                        <Heart className="w-4 h-4 text-pink-500 shadow-sm fill-pink-500 animate-pulse" />
                                     </div>
                                     <span className="text-sm font-black uppercase tracking-wider bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
                                         Premium Sponsor
                                     </span>
                                     <span className="text-xl">💎</span>
                                 </div>
-                                <p className="text-sm font-semibold text-foreground mb-1">
-                                    Thank you for supporting MeshCards! 🎉
+                                <p className="text-sm font-black text-foreground mb-1">
+                                    Thank you for your support, {user?.user_metadata?.full_name || user?.user_metadata?.name || 'Explorer'}! 🎉
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                    You have unlimited access to a large selection of premium AI models (Llama, Mistral, Qwen, and more!) plus priority support. Need a specific model? Request it via the feedback form!
+                                <p className="text-xs text-muted-foreground font-medium">
+                                    You've unlocked **10 decks/day** and access to a massive selection of premium models (Llama 3.3, Mistral, Qwen, etc.). We're glad to have you!
                                 </p>
                             </div>
                         </div>
@@ -780,13 +780,18 @@ const Studio = () => {
                                 <option value="gemini-3-pro">Gemini 3 Pro (Experimental Ultra)</option>
                                 <option value="gemini-3-flash">Gemini 3 Flash (Experimental Speed)</option>
                             </optgroup>
-                            {(issponsor || novitaAccessMode === 'all') && (
+                            {(issponsor || novitaAccessMode === 'all') ? (
                                 <optgroup label={issponsor ? "🌟 Premium Models (Sponsor Choice) 💎" : "🌟 Premium Models"}>
-                                    {/* BEST & CHEAPEST - All under $0.60/M */}
                                     <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B — Best Value! ⭐</option>
                                     <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 7B — Ultra Cheap! 💰</option>
                                     <option value="mistralai/mistral-small-2409">Mistral Small — Balanced</option>
                                     <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B — Reliable</option>
+                                </optgroup>
+                            ) : (
+                                <optgroup label="🔒 Premium Models (Sponsors Only)">
+                                    <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B (Locked 🔒)</option>
+                                    <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 7B (Locked 🔒)</option>
+                                    <option value="mistralai/mistral-small-2409">Mistral Small (Locked 🔒)</option>
                                 </optgroup>
                             )}
                         </select>
@@ -849,11 +854,13 @@ const Studio = () => {
                                     </span>
                                 </div>
                             ) : (
-                                <span className={`${dailyCount >= 2 ? "text-red-500 font-black" : "text-primary"}`}>
-                                    {dailyCount >= 2 
-                                        ? "⚠️ Daily Free Limit Reached" 
-                                        : `Daily Limit: ${Math.max(0, 2 - dailyCount)} / 2 remaining`}
-                                    <p className="text-[10px] text-muted-foreground mt-0.5 font-normal">Click to add your own API key</p>
+                               <span className={`${(dailyCount >= (issponsor ? 10 : 2) && !userApiKey) ? "text-red-500 font-black" : "text-primary"}`}>
+                                    {(dailyCount >= (issponsor ? 10 : 2) && !userApiKey) 
+                                        ? "⚠️ Daily Limit Reached" 
+                                        : `Daily Limit: ${Math.max(0, (issponsor ? 10 : 2) - dailyCount)} / ${issponsor ? 10 : 2} remaining`}
+                                    <p className="text-[10px] text-muted-foreground mt-0.5 font-normal">
+                                        {issponsor ? "Thanks for sponsoring! Click to use private API key" : "Click to use your own API key & bypass limit"}
+                                    </p>
                                 </span>
                             )}
                         </div>
@@ -861,25 +868,39 @@ const Studio = () => {
                     
                     <Button 
                         onClick={handleGenerate} 
-                        disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= 2 && !issponsor && !userApiKey)} 
+                        disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= (issponsor ? 10 : 2) && !userApiKey)} 
                         className={`w-full py-6 rounded-xl font-bold transition-all shadow-[4px_4px_0_0_hsl(var(--foreground))] border-2 border-foreground hover:translate-y-[2px] hover:shadow-none disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none
-                            ${(dailyCount !== null && dailyCount >= 2 && !issponsor && !userApiKey) ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90"}
+                            ${(dailyCount !== null && dailyCount >= (issponsor ? 10 : 2) && !userApiKey) ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90"}
                         `}
                     >
                         {isGenerating ? (
                             <><RefreshCw className="mr-2 animate-spin h-5 w-5" /> Generating...</>
-                        ) : (dailyCount !== null && dailyCount >= 2 && !issponsor && !userApiKey) ? (
+                        ) : (dailyCount !== null && dailyCount >= (issponsor ? 10 : 2) && !userApiKey) ? (
                             "Limit Reached - Use Own Key"
+                        ) : issponsor && currentProvider === 'novita' ? (
+                            <><Zap className="mr-2 h-5 w-5 fill-yellow-400 text-yellow-500" /> Premium Core Generation</>
                         ) : (
                             "Generate Flashcards"
                         )}
                     </Button>
                     
-                    {(dailyCount !== null && dailyCount >= 2 && !issponsor && !userApiKey) && (
-                        <p className="text-[10px] text-center mt-3 text-muted-foreground">
-                            Free tier is limited to 2 decks/day. Add your own API key to continue generating unlimited decks!
+                    {(dailyCount !== null && dailyCount >= (issponsor ? 10 : 2) && !userApiKey) && (
+                        <p className="text-[10px] text-center mt-3 text-muted-foreground italic">
+                            {issponsor 
+                                ? "Sponsor limit (10/day) reached. Add your own key for absolute unlimited access!" 
+                                : "Free limit (2/day) reached. Sponsor or use own API key to continue!"}
                         </p>
                     )}
+
+                    <div className="mt-4 flex items-center justify-between px-1">
+                        <div className="flex items-center gap-1.5 opacity-60">
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-tighter">AI Images</span>
+                        </div>
+                        <div className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
+                            Sponsors Only (Coming Soon 🚧)
+                        </div>
+                    </div>
                     </div>
                 </div>
                 </div>
