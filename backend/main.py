@@ -102,6 +102,7 @@ def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
             if user_key and user_key.strip():
                 return user_key
             else:
+                # Raise special error that frontend can recognize
                 raise ValueError(
                     "BYOK_REQUIRED|"
                     "This service requires you to use your own Gemini API key. "
@@ -116,7 +117,11 @@ def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
             if env_key:
                 return env_key
             
-            raise ValueError("No Gemini API Key available. Please provide your own key.")
+            # If shared fails, prompt for BYOK anyway
+            raise ValueError(
+                "API_LIMIT_EXCEEDED|"
+                "No Gemini API Key available from system. Please provide your own key."
+            )
         else:
             logger.warning(f"Invalid GEMINI_MODE: {settings.GEMINI_MODE}. Defaulting to shared.")
             # Default to shared mode behavior
@@ -124,7 +129,7 @@ def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
                 return user_key
             if settings.GEMINI_API_KEY:
                 return settings.GEMINI_API_KEY
-            raise ValueError("No API Key found for Gemini.")
+            raise ValueError("API_LIMIT_EXCEEDED|No API Key found for Gemini.")
     
     # For other providers (OpenAI, Anthropic, Novita): Standard behavior
     # 1. User provided key (BYOK)
@@ -136,7 +141,7 @@ def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
     if env_key:
         return env_key
         
-    raise ValueError(f"No API Key found for {provider}. Please provide one.")
+    raise ValueError(f"API_LIMIT_EXCEEDED|No API Key found for {provider}. Please provide one.")
 
 def log_error_to_github(e: Exception, context: str = "", user_id: str = None, request_data: dict = None):
     """
@@ -257,14 +262,20 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
                     logger.warning(f"Failed to cleanup image file: {e}")
         
     except Exception as e:
-        # Check if it's an API limit error that requires user key
         error_msg = str(e)
-        if "API_LIMIT_EXCEEDED" in error_msg:
-            # Special handling for API limit - ask user for their own key
-            jobs[job_id]["status"] = "api_limit_exceeded"
-            jobs[job_id]["error"] = error_msg.split("|")[1] if "|" in error_msg else error_msg
-            logger.warning(f"Job {job_id}: API limit exceeded, user key required")
-            return
+        logger.error(f"Generation task failed: {error_msg}")
+        
+        # Check if it's an API limit or BYOK error
+        if "API_LIMIT_EXCEEDED" in error_msg or "BYOK_REQUIRED" in error_msg:
+            status = "api_limit_exceeded" if "API_LIMIT_EXCEEDED" in error_msg else "byok_required"
+            msg = error_msg.split("|")[1] if "|" in error_msg else error_msg
+            
+            jobs[job_id]["status"] = status
+            jobs[job_id]["error"] = msg
+            logger.warning(f"Job {job_id}: {status} - {msg}")
+            
+            # Re-raise so job queue also knows it failed
+            raise e
         
         # Log full error to GitHub with user context
         simple_error = log_error_to_github(
@@ -275,6 +286,9 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
         
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = simple_error
+        
+        # Re-raise so job queue also knows it failed
+        raise e
 
 
 @app.post("/api/feedback")
@@ -402,26 +416,30 @@ async def submit_job(
         )
     
     # 2. Check Daily Quota (2 decks per day, resets at 12 AM IST)
-    try:
-        check_quota(user.id)
-    except HTTPException as e:
-        # Re-raise quota exceeded errors with clear message
-        raise e
-    except Exception as e:
-        logger.error(f"Quota check error for user {user.id}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Unable to verify quota. Please try again later."
-        )
+    # BYPASS quota check if user is providing their own API key
+    if not api_key:
+        try:
+            check_quota(user.id)
+        except HTTPException as e:
+            # Re-raise quota exceeded errors with clear message
+            raise e
+        except Exception as e:
+            logger.error(f"Quota check error for user {user.id}: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Unable to verify quota. Please try again later."
+            )
+    else:
+        logger.info(f"User {user.id} is using their own API key, bypassing quota check.")
     
     # 3. Check Novita access based on access mode setting
-    if provider == "novita":
+    if provider == "novita" and not api_key:
         if settings.NOVITA_ACCESS_MODE == "sponsors_only":
-            # Strict mode: Only sponsors can use Novita
+            # Strict mode: Only sponsors can use Novita (using our system key)
             if not check_sponsor(user.id):
                 raise HTTPException(
                     status_code=403,
-                    detail="Premium AI models (Llama, Mistral, Qwen, and more) are only available to sponsors. Support the project at https://buymeacoffee.com/htclodkzgo to unlock access to a large selection of premium models! You can also request specific models via the feedback form."
+                    detail="Premium AI models (Llama, Mistral, Qwen, and more) are only available to sponsors. Support the project at https://buymeacoffee.com/htclodkzgo to unlock access to a large selection of premium models! Alternatively, add your own Novita API key to use these models without a sponsorship."
                 )
         elif settings.NOVITA_ACCESS_MODE == "all":
             # Open mode: Everyone can use Novita (no check needed)
@@ -434,6 +452,8 @@ async def submit_job(
                     status_code=403,
                     detail="Premium AI models are restricted. Please contact support."
                 )
+    elif provider == "novita" and api_key:
+        logger.info(f"User {user.id} is using their own Novita API key.")
 
     if not files and not text:
         raise HTTPException(status_code=400, detail="Either file or text must be provided")

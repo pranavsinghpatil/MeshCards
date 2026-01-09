@@ -82,7 +82,7 @@ export default function QueueStatus({ position, queueLength, estimatedWaitSecond
         <Info className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
         <AlertDescription className="text-yellow-800 dark:text-yellow-200">
           <p className="text-sm font-semibold">
-            ⚠️ Please keep this tab open while waiting. Your position updates automatically!
+             Please keep this tab open while waiting. Your position updates automatically!
           </p>
         </AlertDescription>
       </Alert>

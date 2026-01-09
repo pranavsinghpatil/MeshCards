@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, FileText, X, Download, RefreshCw, ChevronDown, Copy, Check, Settings, Sparkles, BookOpen, ExternalLink, ArrowRight, Heart } from "lucide-react";
+import { Upload, FileText, X, Download, RefreshCw, ChevronDown, Copy, Check, Settings, Sparkles, BookOpen, ExternalLink, ArrowRight, Heart, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,24 +36,32 @@ const LoadingOverlay = ({ statusMessage }: { statusMessage?: string }) => {
     }, [statusMessage]);
 
     return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px] animate-in fade-in duration-500 rounded-2xl select-none">
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md animate-in fade-in duration-500 rounded-2xl select-none border-2 border-primary/20">
             <div className="relative mb-8">
                 {/* Glowing Mesh Effect */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-primary to-purple-500 blur-2xl opacity-40 animate-pulse rounded-full" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-primary via-purple-500 to-pink-500 blur-3xl opacity-30 animate-pulse rounded-full" />
                 
                 {/* Card Animation */}
-                <div className="relative bg-card border-2 border-primary/20 w-32 h-44 rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-4 animate-bounce">
-                    <div className="w-20 h-2 bg-primary/20 rounded-full" />
-                    <div className="w-16 h-2 bg-foreground/10 rounded-full" />
-                    <div className="w-24 h-2 bg-foreground/10 rounded-full" />
-                    <div className="w-12 h-2 bg-foreground/10 rounded-full" />
+                <div className="relative bg-card border-4 border-foreground w-40 h-56 rounded-3xl shadow-[8px_8px_0_0_hsl(var(--foreground))] flex flex-col items-center justify-center gap-5 animate-bounce">
+                    <div className="w-24 h-2.5 bg-primary/20 rounded-full" />
+                    <div className="w-20 h-2.5 bg-foreground/10 rounded-full" />
+                    <div className="w-28 h-2.5 bg-foreground/10 rounded-full" />
+                    <div className="w-16 h-2.5 bg-foreground/10 rounded-full" />
                     
-                    <RefreshCw className="w-6 h-6 text-primary animate-spin absolute bottom-6" />
+                    <div className="absolute bottom-8 flex items-center justify-center">
+                         <div className="absolute inset-0 bg-primary/20 blur-xl animate-pulse rounded-full" />
+                         <RefreshCw className="w-8 h-8 text-primary animate-spin relative z-10" />
+                    </div>
                 </div>
             </div>
             
-            <h3 className="text-2xl font-bold mb-2 tracking-tight">{text}</h3>
-            <p className="text-muted-foreground text-sm">Forging your knowledge deck...</p>
+            <h3 className="text-3xl font-black mb-3 tracking-tighter bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                {text}
+            </h3>
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-muted rounded-full border border-border animate-pulse">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Forging your knowledge deck...</p>
+            </div>
         </div>
     );
 };
@@ -179,7 +187,7 @@ const Studio = () => {
   const [lastJobId, setLastJobId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
-  const [userApiKey, setUserApiKey] = useState<string>("");
+  const [userApiKey, setUserApiKey] = useState<string>(() => localStorage.getItem("mesh_user_api_key") || "");
   const [currentProvider, setCurrentProvider] = useState<string>("gemini");
   const [issponsor, setIssponsor] = useState(false);
   const [geminiMode, setGeminiMode] = useState<string>("shared"); // "shared" or "byok"
@@ -193,19 +201,25 @@ const Studio = () => {
             if(!sb) return;
             
             // Fetch daily count
-            const { data } = await sb.from('profiles').select('daily_count').eq('id', session.user.id).single();
+            const { data } = await sb.from('profiles').select('daily_count').eq('id', session.user.id).maybeSingle();
             if(data) {
                 setDailyCount(data.daily_count);
             }
             
-            // Check sponsor status
-            const { data: sponsorData } = await sb.from('sponsors')
-                .select('is_active')
-                .eq('user_id', session.user.id)
-                .single();
-            
-            if (sponsorData?.is_active) {
-                setIssponsor(true);
+            // Check sponsor status - handled safely
+            try {
+                const { data: sponsorData, error: sponsorError } = await sb.from('sponsors')
+                    .select('is_active')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (sponsorError) {
+                    console.warn("Sponsor check warning:", sponsorError.message);
+                } else if (sponsorData?.is_active) {
+                    setIssponsor(true);
+                }
+            } catch (e) {
+                console.error("Sponsor check failed catch:", e);
             }
         };
         fetchProfile();
@@ -231,6 +245,11 @@ const Studio = () => {
       }
     };
     fetchConfig();
+
+    // Listen for global API Settings event
+    const handleOpenSettings = () => setShowApiKeyDialog(true);
+    window.addEventListener('mesh_open_api_settings', handleOpenSettings);
+    return () => window.removeEventListener('mesh_open_api_settings', handleOpenSettings);
   }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -331,8 +350,8 @@ const Studio = () => {
           if (data.status === 'completed') return true;
           
           // Check for API limit exceeded - prompt for user key
-          if (data.status === 'api_limit_exceeded') {
-              setStatusMessage("⚠️ API Limit Reached");
+          if (data.status === 'api_limit_exceeded' || data.status === 'byok_required') {
+              setStatusMessage(data.status === 'api_limit_exceeded' ? "⚠️ API Limit Reached" : "🔑 API Key Required");
               setShowApiKeyDialog(true);
               throw new Error("API_LIMIT_PROMPT"); // Special error to stop polling
           }
@@ -531,17 +550,28 @@ const Studio = () => {
   };
   
   const handleApiKeySubmit = async (apiKey: string) => {
+      if (!apiKey) {
+          // Clearing the key
+          setUserApiKey("");
+          localStorage.removeItem("mesh_user_api_key");
+          toast({ title: "API Key Cleared", description: "You are now using the shared free quota." });
+          return;
+      }
+
       setUserApiKey(apiKey);
+      localStorage.setItem("mesh_user_api_key", apiKey);
       setShowApiKeyDialog(false);
       
       toast({
-          title: "API Key Received",
-          description: "Retrying generation with your key...",
+          title: "API Key Saved",
+          description: "Your key is saved locally for this browser. Retrying generation...",
           duration: 3000
       });
       
-      // Retry generation with user's key
-      await handleGenerate();
+      // Retry generation with user's key if it was a retry-action
+      if (isGenerating) {
+        await handleGenerate();
+      }
   };
   
   // Restore active job on mount
@@ -740,25 +770,23 @@ const Studio = () => {
                             }} 
                             className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-3 py-2 text-sm cursor-pointer font-bold"
                         >
-                            <optgroup label="Gemini (Free)">
-                                <option value="gemini-3-pro">Gemini 3 Pro — Most Intelligent & Multimodal</option>
-                                <option value="gemini-3-flash">Gemini 3 Flash — Balanced, Fast & Scalable</option>
-                                <option value="gemini-2.5-pro">Gemini 2.5 Pro — Strong Reasoning & Versatile</option>
-                                <option value="gemini-2.5-flash">Gemini 2.5 Flash — Best Performance & Low Latency</option>
-                                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite — Lightweight & Efficient</option>
-                                <option value="gpt-4.1">GPT-4 Turbo (Gemini-Powered Premium)</option>
-                                <option value="claude-opus-4.5">Claude 3.5 (Gemini-Powered Premium)</option>
+                            <optgroup label="Gemini (Standard)">
+                                <option value="gemini-2.0-flash">Gemini 2.0 Flash — Best Balance (Next Gen)</option>
+                                <option value="gemini-1.5-pro">Gemini 1.5 Pro — Highest Intelligence</option>
+                                <option value="gemini-1.5-flash">Gemini 1.5 Flash — Fast & Reliable</option>
+                                <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B — Lightweight</option>
+                                
+                                <option disabled>─────────────────────────</option>
+                                <option value="gemini-3-pro">Gemini 3 Pro (Experimental Ultra)</option>
+                                <option value="gemini-3-flash">Gemini 3 Flash (Experimental Speed)</option>
                             </optgroup>
-                            {issponsor && (
-                                <optgroup label="🌟 Premium Models (Sponsors Only) - Best Value! 💎">
+                            {(issponsor || novitaAccessMode === 'all') && (
+                                <optgroup label={issponsor ? "🌟 Premium Models (Sponsor Choice) 💎" : "🌟 Premium Models"}>
                                     {/* BEST & CHEAPEST - All under $0.60/M */}
-                                    <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B — Best Value! ⭐ ($0.35/M)</option>
-                                    <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 7B — Ultra Cheap! 💰 ($0.07/M)</option>
-                                    <option value="mistralai/mistral-small-2409">Mistral Small — Fast & Affordable ($0.20/M)</option>
-                                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B — Reliable ($0.60/M)</option>
-                                    
-                                    <option disabled>─────────────────────────</option>
-                                    <option disabled>💡 All models optimized for cost!</option>
+                                    <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B — Best Value! ⭐</option>
+                                    <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 7B — Ultra Cheap! 💰</option>
+                                    <option value="mistralai/mistral-small-2409">Mistral Small — Balanced</option>
+                                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B — Reliable</option>
                                 </optgroup>
                             )}
                         </select>
@@ -809,27 +837,49 @@ const Studio = () => {
 
                     <div className="mt-6 pt-4 border-t border-border">
                     {dailyCount !== null && (
-                        <div className="text-center text-sm font-medium mb-2">
-                            {issponsor ? (
+                        <div 
+                            onClick={() => setShowApiKeyDialog(true)}
+                            className="text-center text-sm font-medium mb-2 cursor-pointer hover:opacity-80 transition-opacity"
+                        >
+                             {(userApiKey || issponsor) ? (
                                 <div className="space-y-1">
                                     <span className="text-primary flex items-center justify-center gap-2">
-                                        <Sparkles className="w-4 h-4" />
-                                        Sponsor Limit: {Math.max(0, 2 - dailyCount)} / 2 free tier remaining
+                                        <ShieldCheck className="w-4 h-4" />
+                                        {userApiKey ? "Using Private API Key (Unlimited)" : `Sponsor Mode: ${Math.max(0, 2 - dailyCount)} / 2 free tier remaining`}
                                     </span>
-                                    <p className="text-xs text-muted-foreground">
-                                        As a sponsor, feel free to use your own API key for unlimited generations! 🚀
-                                    </p>
                                 </div>
                             ) : (
-                                <span className={`${dailyCount >= 2 ? "text-red-500" : "text-primary"}`}>
-                                    Daily Limit: {Math.max(0, 2 - dailyCount)} / 2 remaining
+                                <span className={`${dailyCount >= 2 ? "text-red-500 font-black" : "text-primary"}`}>
+                                    {dailyCount >= 2 
+                                        ? "⚠️ Daily Free Limit Reached" 
+                                        : `Daily Limit: ${Math.max(0, 2 - dailyCount)} / 2 remaining`}
+                                    <p className="text-[10px] text-muted-foreground mt-0.5 font-normal">Click to add your own API key</p>
                                 </span>
                             )}
                         </div>
                     )}
-                    <Button onClick={handleGenerate} disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= 2 && !issponsor)} className="w-full bg-foreground text-background py-3 rounded-xl font-bold disabled:opacity-50">
-                        {isGenerating ? <><RefreshCw className="mr-2 animate-spin" /> Generating...</> : "Generate Cards"}
+                    
+                    <Button 
+                        onClick={handleGenerate} 
+                        disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= 2 && !issponsor && !userApiKey)} 
+                        className={`w-full py-6 rounded-xl font-bold transition-all shadow-[4px_4px_0_0_hsl(var(--foreground))] border-2 border-foreground hover:translate-y-[2px] hover:shadow-none disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none
+                            ${(dailyCount !== null && dailyCount >= 2 && !issponsor && !userApiKey) ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90"}
+                        `}
+                    >
+                        {isGenerating ? (
+                            <><RefreshCw className="mr-2 animate-spin h-5 w-5" /> Generating...</>
+                        ) : (dailyCount !== null && dailyCount >= 2 && !issponsor && !userApiKey) ? (
+                            "Limit Reached - Use Own Key"
+                        ) : (
+                            "Generate Flashcards"
+                        )}
                     </Button>
+                    
+                    {(dailyCount !== null && dailyCount >= 2 && !issponsor && !userApiKey) && (
+                        <p className="text-[10px] text-center mt-3 text-muted-foreground">
+                            Free tier is limited to 2 decks/day. Add your own API key to continue generating unlimited decks!
+                        </p>
+                    )}
                     </div>
                 </div>
                 </div>
@@ -840,16 +890,16 @@ const Studio = () => {
       </main>
       <SimpleFooter />
       
-      {/* API Key Dialog */}
-      <ApiKeyDialog
-        open={showApiKeyDialog}
+      {/* API Key Modal */}
+      <ApiKeyDialog 
+        open={showApiKeyDialog} 
         onClose={() => {
             setShowApiKeyDialog(false);
             setIsGenerating(false);
-            localStorage.removeItem("mesh_active_job");
         }}
         onSubmit={handleApiKeySubmit}
         provider={currentProvider}
+        isByokRequired={statusMessage.includes("Required") || geminiMode === "byok"}
       />
     </div>
   );

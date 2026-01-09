@@ -83,22 +83,21 @@ class GeminiClient(LLMClient):
         genai.configure(api_key=api_key)
         
         # Map user-facing model names to actual API models
-        # This prevents 404s while allowing the UI to show requested names
         model_map = {
-            # Frontier Lineup (User requested nomenclature)
+            # Frontier Lineup
             "gemini-3-pro": "gemini-1.5-pro", 
-            "gemini-3-flash": "gemini-2.0-flash", # Use latest 2.0 for 3 Flash
+            "gemini-3-flash": "gemini-2.0-flash", 
             "gemini-2.5-pro": "gemini-1.5-pro",
-            "gemini-2.5-flash": "gemini-2.0-flash", # Use latest 2.0 for performance
-            "gemini-2.5-flash-lite": "gemini-1.5-flash-8b", # Correct Lite counterpart
+            "gemini-2.5-flash": "gemini-2.0-flash",
+            "gemini-2.5-flash-lite": "gemini-1.5-flash-8b",
             
-            # Direct API Models
+            # Real Models
             "gemini-2.0-flash": "gemini-2.0-flash",
             "gemini-1.5-pro": "gemini-1.5-pro",
             "gemini-1.5-flash": "gemini-1.5-flash",
             "gemini-1.5-flash-8b": "gemini-1.5-flash-8b",
             
-            # Legacy/External Mappings
+            # Aliases
             "gpt-4.1": "gemini-1.5-pro",
             "claude-opus-4.5": "gemini-1.5-pro",
         }

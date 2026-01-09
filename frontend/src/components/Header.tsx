@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Heart } from "lucide-react";
+import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Heart, ChevronDown, Settings } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTheme, themes } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
@@ -149,31 +149,72 @@ const Header = () => {
             </div>
 
             {session ? (
-                <div className="relative group hidden md:block">
+                <div className="relative group">
                     <button 
                         className="flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-lg hover:bg-muted transition-colors border border-transparent hover:border-border/40"
                     >
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-primary/20 to-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-sm">
-                            <User className="w-4 h-4" />
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-primary-foreground border-2 border-primary/20 shadow-md overflow-hidden shrink-0">
+                            {user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
+                                <img src={user.user_metadata.avatar_url || user.user_metadata.picture} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                                <User className="w-4 h-4" />
+                            )}
                         </div>
-                        <span className="max-w-[100px] truncate">
+                        <span className="max-w-[100px] truncate hidden sm:block">
                             {user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0]}
                         </span>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:rotate-180 transition-transform duration-300" />
                     </button>
 
-                    {/* User Dropdown (Hover) */}
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl p-1 z-[99999] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right">
-                        <div className="px-3 py-2.5 border-b border-border/50 mb-1 bg-muted/30 rounded-t-lg">
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-0.5">Signed in as</p>
-                            <p className="text-sm font-bold truncate text-foreground">{user?.email}</p>
+                    {/* User Dropdown */}
+                    <div className="absolute right-0 top-full mt-2 w-72 bg-card border-2 border-foreground rounded-2xl shadow-[4px_4px_0_0_hsl(var(--foreground))] p-1 z-[10000] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 origin-top-right scale-95 group-hover:scale-100">
+                        <div className="px-4 py-4 border-b-2 border-foreground/10 mb-1 bg-muted/30 rounded-t-xl flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] overflow-hidden shrink-0">
+                                {user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
+                                    <img src={user.user_metadata.avatar_url || user.user_metadata.picture} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-primary/20 flex items-center justify-center text-primary">
+                                        <User className="w-5 h-5" />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground leading-none mb-1">Auth Account</p>
+                                <p className="text-sm font-bold truncate text-foreground leading-tight">{user?.email}</p>
+                                <p className="text-[10px] text-primary font-black truncate uppercase mt-0.5">
+                                    {user?.user_metadata?.full_name || user?.user_metadata?.name || 'Mesh Explorer'}
+                                </p>
+                            </div>
                         </div>
-                        <button 
-                            onClick={handleSignOut}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-                        >
-                            <LogOut className="w-4 h-4" />
-                            Sign Out
-                        </button>
+                        <div className="p-1">
+                            <Link 
+                                to="/studio"
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold hover:bg-primary/10 hover:text-primary rounded-lg transition-colors"
+                                onClick={() => setUserMenuOpen(false)}
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                Flashcard Studio
+                            </Link>
+                            <button 
+                                onClick={() => {
+                                    // This event is caught by Studio.tsx to open the dialog
+                                    window.dispatchEvent(new CustomEvent('mesh_open_api_settings'));
+                                    setUserMenuOpen(false);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold hover:bg-primary/10 hover:text-primary rounded-lg transition-colors"
+                            >
+                                <Settings className="w-4 h-4" />
+                                API Key Settings
+                            </button>
+                            <div className="h-px bg-foreground/10 my-1 mx-2" />
+                            <button 
+                                onClick={handleSignOut}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Sign Out
+                            </button>
+                        </div>
                     </div>
                 </div>
             ) : (
