@@ -862,16 +862,17 @@ const Studio = () => {
                                  <div className="space-y-1">
                                     <span className="text-primary flex items-center justify-center gap-2">
                                         <ShieldCheck className="w-4 h-4" />
-                                        {userApiKey ? "Using Private API Key (Unlimited)" : `Sponsor Mode: ${Math.max(0, 10 - dailyCount)} / 10 daily quota remaining`}
+                                        {userApiKey ? "Using Private API Key (Unlimited)" : `Sponsor Mode: ${Math.max(0, 5 - dailyCount)} / 5 daily quota left`}
                                     </span>
                                 </div>
                             ) : (
-                               <span className={`${(dailyCount >= (issponsor ? 10 : 2) && !userApiKey) ? "text-red-500 font-black" : "text-primary"}`}>
-                                    {(dailyCount >= (issponsor ? 10 : 2) && !userApiKey) 
+                               <span className={`${(dailyCount >= (issponsor ? 5 : 2) && !userApiKey) ? "text-red-500 font-black" : "text-primary"}`}>
+                                    {(dailyCount >= (issponsor ? 5 : 2) && !userApiKey) 
                                         ? "⚠️ Daily Limit Reached" 
-                                        : `Daily Limit: ${Math.max(0, (issponsor ? 10 : 2) - dailyCount)} / ${issponsor ? 10 : 2} remaining`}
+                                        : `Daily Limit: ${Math.max(0, (issponsor ? 5 : 2) - dailyCount)} / ${issponsor ? 5 : 2} decks left`}
                                     <p className="text-[10px] text-muted-foreground mt-0.5 font-normal">
-                                        {issponsor ? "Thanks for sponsoring! Click to use private API key" : "Click to use your own API key & bypass limit"}
+                                        {!issponsor && "Limited infra: Support us for 5/day or use your own key."}
+                                        {issponsor && "Click to use private API key for unlimited decks"}
                                     </p>
                                 </span>
                             )}

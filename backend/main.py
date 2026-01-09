@@ -445,7 +445,7 @@ async def submit_job(
                     detail=(
                         "🌟 Premium AI models (Llama 3.3, Mistral, Qwen) are available to our Sponsors! 💎\n\n"
                         "Support the project at https://buymeacoffee.com/htclodkzgo to unlock restricted models "
-                        "and get a 10x higher daily limit (10 decks/day).\n\n"
+                        "and get a higher daily limit (5 decks/day).\n\n"
                         "Alternatively, provide your own Novita API key in 'API Settings' to use these models directly."
                     )
                 )
@@ -710,6 +710,36 @@ async def admin_reset_quota(user_id: str, x_admin_key: Optional[str] = Header(No
     sb = get_supabase()
     sb.table('profiles').update({"daily_count": 0}).eq('id', user_id).execute()
     return {"status": "success"}
+
+@app.post("/api/admin/seed-demo")
+async def admin_seed_demo(x_admin_key: Optional[str] = Header(None)):
+    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    
+    sb = get_supabase()
+    demo_users = [
+        {"id": f"demo-{i}", "email": f"user{i}@example.com", "full_name": f"Demo User {i}", "daily_count": random.randint(0, 2), "last_reset": datetime.now().date().isoformat()}
+        for i in range(1, 4)
+    ]
+    
+    for u in demo_users:
+        sb.table('profiles').upsert(u, on_conflict="id").execute()
+    
+    return {"status": "success", "message": "Demo data seeded"}
+
+@app.post("/api/admin/sync-current")
+async def admin_sync_current(request: Request, x_admin_key: Optional[str] = Header(None)):
+    """Syncs the current requesting user into the profiles table."""
+    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+        
+    authorization = request.headers.get("Authorization")
+    user = await get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not logged in")
+        
+    check_quota(user) # This automatically ensures the profile exists
+    return {"status": "success", "user": user.email}
 
 # Mount static files - MUST BE LAST
 # Mount static files - MUST BE LAST

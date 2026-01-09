@@ -98,7 +98,7 @@ def check_quota(user: any):
         
         # Determine user limit based on sponsor status
         is_user_sponsor = check_sponsor(user_id)
-        daily_limit = 10 if is_user_sponsor else 2
+        daily_limit = 5 if is_user_sponsor else 2
         
         # Check if quota exceeded (STRICT ENFORCEMENT)
         if count >= daily_limit:
@@ -107,10 +107,14 @@ def check_quota(user: any):
             next_reset = datetime.combine(tomorrow_ist, datetime.min.time()).replace(tzinfo=IST)
             hours_until_reset = int((next_reset - now_ist).total_seconds() / 3600)
             
-            sponsor_msg = "Sponsors get 10 decks/day!" if not is_user_sponsor else ""
+            if not is_user_sponsor:
+                reason_msg = "Since we are running on limited infra, daily limits are tight. Sponsors get 5 decks/day!"
+            else:
+                reason_msg = ""
+
             raise HTTPException(
                 status_code=429, 
-                detail=f"Daily quota exceeded ({count}/{daily_limit} decks). {sponsor_msg} Resets in ~{hours_until_reset} hours at 12 AM IST."
+                detail=f"Daily quota exceeded ({count}/{daily_limit} decks). {reason_msg} Resets in ~{hours_until_reset} hours at 12 AM IST."
             )
                 
     except HTTPException:
