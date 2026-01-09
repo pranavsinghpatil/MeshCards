@@ -664,34 +664,43 @@ async def admin_list_users(x_admin_key: Optional[str] = Header(None)):
     return res.data
 
 @app.post("/api/admin/users/{user_id}/toggle-sponsor")
-async def admin_toggle_sponsor(user_id: str, x_admin_key: Optional[str] = Header(None)):
+async def admin_toggle_sponsor(user_id: str, tier: Optional[str] = Form(None), x_admin_key: Optional[str] = Header(None)):
     if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
         raise HTTPException(status_code=403, detail="Invalid admin key")
     
     sb = get_supabase()
     # Get current state
-    profile = sb.table('profiles').select('is_sponsor').eq('id', user_id).maybeSingle().execute()
+    profile = sb.table('profiles').select('is_sponsor, email, full_name').eq('id', user_id).maybeSingle().execute()
     if not profile.data:
         raise HTTPException(status_code=404, detail="User not found")
     
-    new_state = not profile.data.get('is_sponsor', False)
-    sb.table('profiles').update({
+    current_is_sponsor = profile.data.get('is_sponsor', False)
+    new_state = not current_is_sponsor
+    
+    # Use provided tier or fallback to default
+    selected_tier = tier or "Premium"
+    
+    update_data = {
         "is_sponsor": new_state,
-        "sponsor_tier": "Manual Premium" if new_state else None
-    }).eq('id', user_id).execute()
+        "sponsor_tier": selected_tier if new_state else None
+    }
+    
+    sb.table('profiles').update(update_data).eq('id', user_id).execute()
     
     # Also sync sponsors table
     if new_state:
         sb.table('sponsors').upsert({
             "user_id": user_id,
+            "email": profile.data.get('email'),
+            "name": profile.data.get('full_name'),
             "is_active": True,
-            "tier": "Manual Admin Support",
+            "tier": selected_tier,
             "updated_at": datetime.now().isoformat()
         }, on_conflict="user_id").execute()
     else:
         sb.table('sponsors').update({"is_active": False}).eq('user_id', user_id).execute()
     
-    return {"status": "success", "is_sponsor": new_state}
+    return {"status": "success", "is_sponsor": new_state, "tier": selected_tier if new_state else None}
 
 @app.post("/api/admin/users/{user_id}/reset-quota")
 async def admin_reset_quota(user_id: str, x_admin_key: Optional[str] = Header(None)):

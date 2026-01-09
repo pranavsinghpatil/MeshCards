@@ -43,6 +43,9 @@ const AdminPage = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
+    const [userTiers, setUserTiers] = useState<Record<string, string>>({});
+
+    const tiers = ["Supporter", "Silver", "Gold", "Premium", "Platinum", "Manual Override"];
 
     const fetchStats = async (key: string) => {
         try {
@@ -88,13 +91,19 @@ const AdminPage = () => {
 
     const toggleSponsor = async (userId: string) => {
         setIsActionLoading(userId + '-sponsor');
+        const selectedTier = userTiers[userId] || "Premium";
+        
         try {
+            const formData = new FormData();
+            formData.append("tier", selectedTier);
+
             const response = await fetch(getApiUrl(`/api/admin/users/${userId}/toggle-sponsor`), {
                 method: 'POST',
-                headers: { "X-Admin-Key": adminKey }
+                headers: { "X-Admin-Key": adminKey },
+                body: formData
             });
             if (response.ok) {
-                toast({ title: "Updated", description: "Sponsor status toggled successfully." });
+                toast({ title: "Updated", description: `User promoted to ${selectedTier}.` });
                 fetchUsers(adminKey);
                 fetchStats(adminKey);
             }
@@ -262,6 +271,7 @@ const AdminPage = () => {
                                                 <th className="py-4 px-4 text-xs font-black uppercase tracking-widest">User Details</th>
                                                 <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-center">Status</th>
                                                 <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-center">Usage</th>
+                                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-right">Target Tier</th>
                                                 <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-right">Actions</th>
                                             </tr>
                                         </thead>
@@ -284,12 +294,24 @@ const AdminPage = () => {
                                                         <div className="text-[10px] uppercase font-black text-muted-foreground">Today</div>
                                                     </td>
                                                     <td className="py-4 px-4 text-right">
+                                                        {!u.is_sponsor && (
+                                                            <select 
+                                                                value={userTiers[u.id] || "Premium"}
+                                                                onChange={(e) => setUserTiers({...userTiers, [u.id]: e.target.value})}
+                                                                className="bg-muted border border-foreground/10 rounded-lg px-2 py-1 text-[10px] font-bold outline-none focus:border-primary"
+                                                            >
+                                                                {tiers.map(t => <option key={t} value={t}>{t}</option>)}
+                                                            </select>
+                                                        )}
+                                                        {u.is_sponsor && <span className="text-[10px] font-black text-primary">{u.sponsor_tier || 'Premium'}</span>}
+                                                    </td>
+                                                    <td className="py-4 px-4 text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            <Button onClick={() => toggleSponsor(u.id)} disabled={!!isActionLoading} variant="outline" size="sm" className="h-9 border-2 font-black text-[10px] rounded-lg">
-                                                                {isActionLoading === u.id + '-sponsor' ? <RefreshCw className="w-3 h-3 animate-spin" /> : (u.is_sponsor ? <><UserMinus className="w-3 h-3 mr-1" /> DEMOTE</> : <><UserPlus className="w-3 h-3 mr-1" /> PROMOTE</>)}
+                                                            <Button onClick={() => toggleSponsor(u.id)} disabled={!!isActionLoading} variant="outline" size="sm" className={`h-9 border-2 font-black text-[10px] rounded-lg ${u.is_sponsor ? 'border-red-500/20 text-red-500 hover:bg-red-50' : 'border-primary/20 text-primary'}`}>
+                                                                {isActionLoading === u.id + '-sponsor' ? <RefreshCw className="w-3 h-3 animate-spin" /> : (u.is_sponsor ? <><UserMinus className="w-3 h-3 mr-1" /> REVOKE</> : <><UserPlus className="w-3 h-3 mr-1" /> GRANT</>)}
                                                             </Button>
                                                             <Button onClick={() => resetQuota(u.id)} disabled={!!isActionLoading} variant="ghost" size="sm" className="h-9 font-black text-[10px] text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/10 rounded-lg">
-                                                                {isActionLoading === u.id + '-quota' ? <RefreshCw className="w-3 h-3 animate-spin" /> : <><RotateCcw className="w-3 h-3 mr-1" /> RESET Q</>}
+                                                                {isActionLoading === u.id + '-quota' ? <RefreshCw className="w-3 h-3 animate-spin" /> : <><RotateCcw className="w-3 h-3 mr-1" /> RESET</>}
                                                             </Button>
                                                         </div>
                                                     </td>
