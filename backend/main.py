@@ -42,6 +42,7 @@ from backend.core.job_queue import job_queue
 from backend.core.sponsor import check_sponsor
 from backend.core.auth import get_admin_stats
 from backend.core.webhook_handlers import handle_bmc_webhook, handle_github_webhook
+from backend.core.supabase import get_supabase
 
 # Setup Rate Limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -421,7 +422,7 @@ async def submit_job(
     # BYPASS quota check if user is providing their own API key
     if not api_key:
         try:
-            check_quota(user.id)
+            check_quota(user)
         except HTTPException as e:
             # Re-raise quota exceeded errors with clear message
             raise e

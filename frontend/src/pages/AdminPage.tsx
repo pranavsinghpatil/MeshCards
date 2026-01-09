@@ -148,8 +148,8 @@ const AdminPage = () => {
     };
 
     const filteredUsers = users.filter(u => 
-        u.email?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.email?.toLowerCase() || "").includes(searchQuery.toLowerCase()) || 
+        (u.full_name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
         u.id.includes(searchQuery)
     );
 

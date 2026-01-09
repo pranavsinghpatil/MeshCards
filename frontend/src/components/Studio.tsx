@@ -214,6 +214,9 @@ const Studio = () => {
                     setSponsorTier(profileData.sponsor_tier || "Premium");
                     return; // Already verified as sponsor via profiles
                 }
+            } else {
+                // New user - default to 0
+                setDailyCount(0);
             }
             
             // Fallback: Check dedicated sponsors table

@@ -3,8 +3,11 @@ from typing import Optional
 from backend.core.supabase import get_supabase
 from backend.core.logging import logger
 from backend.core.sponsor import check_sponsor
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
+
+# Define IST timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 async def get_current_user(authorization: Optional[str] = Header(None)):
     """
@@ -12,12 +15,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     Returns the user object if valid.
     """
     supabase = get_supabase()
-    
-    # If Supabase is not configured, we might allow anonymous access or fail
-    # For this strict quota feature, we should fail if Supabase is missing but intended
     if not supabase:
-        # Fallback: connection failed or not configured.
-        # If we demand quotas, we must fail. use ANON for dev if needed
         return None
 
     if not authorization:
@@ -35,15 +33,15 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Authentication Failed: {str(e)}")
 
-def check_quota(user_id: str):
+def check_quota(user: any):
     """
     Checks if the user has remaining quota for the day.
     Automatically resets quota if it's a new day (12 AM IST).
+    Also syncs user metadata (email, name) to the profile.
     """
-    from datetime import datetime, timezone, timedelta
-    
-    # Define IST timezone (UTC+5:30)
-    IST = timezone(timedelta(hours=5, minutes=30))
+    user_id = user.id
+    email = getattr(user, 'email', None)
+    full_name = getattr(user, 'user_metadata', {}).get('full_name') or getattr(user, 'user_metadata', {}).get('name')
     
     supabase = get_supabase()
     if not supabase:
@@ -68,6 +66,8 @@ def check_quota(user_id: str):
             # Profile doesn't exist, create it
             supabase.table('profiles').insert({
                 'id': user_id,
+                'email': email,
+                'full_name': full_name,
                 'daily_count': 0,
                 'last_reset': today_ist
             }).execute()
@@ -77,15 +77,24 @@ def check_quota(user_id: str):
         count = profile.get('daily_count', 0)
         last_reset = profile.get('last_reset', '')
         
-        # Check if we need to reset (new day in IST)
+        # Check if we need to reset (new day in IST) or just sync metadata
         if last_reset != today_ist:
-            # Reset the quota for the new day
+            # Reset the quota for the new day and sync metadata
             supabase.table('profiles').update({
                 'daily_count': 0,
-                'last_reset': today_ist
+                'last_reset': today_ist,
+                'email': email,
+                'full_name': full_name
             }).eq('id', user_id).execute()
             logger.info(f"Quota reset for user {user_id} - New day in IST: {today_ist}")
             return  # Quota reset, allow generation
+        else:
+            # Just sync metadata if it's been a while (optional but good for data quality)
+            # We'll do it on every check for now to ensure Admin page stays accurate
+            supabase.table('profiles').update({
+                'email': email,
+                'full_name': full_name
+            }).eq('id', user_id).execute()
         
         # Determine user limit based on sponsor status
         is_user_sponsor = check_sponsor(user_id)
@@ -109,81 +118,46 @@ def check_quota(user_id: str):
         raise
     except Exception as e:
         error_msg = str(e)
-        
-        # Check if it's an RLS policy error
-        if 'row-level security policy' in error_msg.lower() or '42501' in error_msg:
-            # Only log as error if in production, otherwise just info/debug to reduce noise
-            if os.getenv("ENV") == "production":
-                 logger.error(f"RLS policy error - profiles table not properly configured: {error_msg}")
-            else:
-                 logger.info(f"Supabase RLS policy restricted access (Active in Dev): {error_msg}")
-            
-            # In production, FAIL CLOSED (deny access)
-            if os.getenv("ENV") == "production":
-                raise HTTPException(
-                    status_code=503,
-                    detail="Service configuration error. Please contact support."
-                )
-            
-            # Development mode - allow but warn
-            logger.warning("Allowing access in development mode despite RLS error")
-            return
-        
-        # Other errors
         logger.error(f"Quota check failed: {error_msg}")
         
-        # In production, FAIL CLOSED (deny access)
         if os.getenv("ENV") == "production":
             raise HTTPException(
                 status_code=500,
                 detail="Unable to verify quota. Please try again later."
             )
-        
-        # Development mode - allow but warn
         logger.warning("Allowing access in development mode despite quota check failure")
-
-
 
 def increment_quota(user_id: str):
     """
-    Increments the user's daily quota count.
+    Increments the daily generation count for a user.
     Should only be called AFTER successful deck generation.
-    Uses IST timezone for consistency with check_quota.
     """
-    from datetime import datetime, timezone, timedelta
-    
-    # Define IST timezone (UTC+5:30)
-    IST = timezone(timedelta(hours=5, minutes=30))
-    
     supabase = get_supabase()
-    if not supabase: 
+    if not supabase:
         return
 
     try:
-        # Use atomic increment with RPC or get current + update
-        res = supabase.table('profiles').select('daily_count, last_reset').eq('id', user_id).execute()
+        # IST timezone for consistency
+        today_ist = datetime.now(IST).date().isoformat()
         
+        res = supabase.table('profiles').select('daily_count, last_reset').eq('id', user_id).execute()
         if res.data:
-            current = res.data[0].get('daily_count', 0)
-            today_ist = datetime.now(IST).date().isoformat()
+            profile = res.data[0]
+            current_count = profile.get('daily_count', 0)
             
             # Double-check date hasn't changed during generation
-            if res.data[0].get('last_reset') != today_ist:
-                # Reset happened during generation, start from 1
+            if profile.get('last_reset') != today_ist:
+                # Reset happened during generation, set to 1
                 supabase.table('profiles').update({
                     'daily_count': 1,
                     'last_reset': today_ist
                 }).eq('id', user_id).execute()
-                logger.info(f"Quota incremented to 1 for user {user_id} (reset during generation)")
             else:
                 # Normal increment
-                new_count = current + 1
                 supabase.table('profiles').update({
-                    'daily_count': new_count
+                    'daily_count': current_count + 1
                 }).eq('id', user_id).execute()
-                logger.info(f"Quota incremented to {new_count} for user {user_id}")
     except Exception as e:
-        # Log but don't fail the request since deck was already generated
         logger.error(f"Failed to increment quota for user {user_id}: {e}")
 
 async def get_admin_stats():
@@ -205,7 +179,7 @@ async def get_admin_stats():
         
         # Get total decks generated today (sum of daily_count)
         decks = supabase.table('profiles').select('daily_count').execute()
-        total_today = sum([d.get('daily_count', 0) for d in decks.data]) if decks.data else 0
+        total_today = sum(p.get('daily_count', 0) for p in decks.data) if decks.data else 0
         
         # Get list of recent sponsors
         sponsors_list_res = supabase.table('sponsors').select('*').order('updated_at', desc=True).limit(20).execute()
@@ -219,6 +193,5 @@ async def get_admin_stats():
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        logger.error(f"Failed to fetch admin stats: {e}")
+        logger.error(f"Admin stats failed: {e}")
         return {"error": str(e)}
-
