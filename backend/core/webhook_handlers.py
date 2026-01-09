@@ -7,7 +7,12 @@ async def handle_bmc_webhook(payload: dict):
     Process Buy Me A Coffee webhook payload.
     Expected payload includes user email and transaction status.
     """
-    email = payload.get("response", {}).get("data", {}).get("supporter_email")
+    data = payload.get("response", {}).get("data", {})
+    email = data.get("supporter_email")
+    name = data.get("supporter_name")
+    support_id = data.get("support_id")
+    tier = data.get("support_tier") or "BMC Supporter"
+    
     if not email:
         logger.warning("BMC Webhook received but no email found in payload")
         return False
@@ -30,8 +35,10 @@ async def handle_bmc_webhook(payload: dict):
         # Update or Insert into sponsors table
         sponsor_data = {
             "email": email,
+            "name": name,
+            "coffee_id": str(support_id) if support_id else None,
             "is_active": True,
-            "tier": "BMC Supporter",
+            "tier": tier,
             "updated_at": datetime.now().isoformat()
         }
         if user_id:
@@ -41,6 +48,13 @@ async def handle_bmc_webhook(payload: dict):
             sponsor_data,
             on_conflict="email"
         ).execute()
+        
+        # Also update profiles table if user exists
+        if user_id:
+            sb.table('profiles').update({
+                "is_sponsor": True,
+                "sponsor_tier": tier
+            }).eq('id', user_id).execute()
         
         logger.info(f"Successfully processed BMC sponsor: {email}")
         return True

@@ -207,10 +207,15 @@ async def get_admin_stats():
         decks = supabase.table('profiles').select('daily_count').execute()
         total_today = sum([d.get('daily_count', 0) for d in decks.data]) if decks.data else 0
         
+        # Get list of recent sponsors
+        sponsors_list_res = supabase.table('sponsors').select('*').order('updated_at', desc=True).limit(20).execute()
+        sponsors_list = sponsors_list_res.data if sponsors_list_res.data else []
+        
         return {
             "total_users": total_users,
             "total_active_sponsors": total_sponsors,
             "total_decks_today": total_today,
+            "sponsors": sponsors_list,
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:

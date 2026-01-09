@@ -1,15 +1,25 @@
 import { useState, useEffect } from "react";
-import { Shield, Users, CreditCard, Zap, Activity, ChevronRight, Lock, Key, RefreshCw, LogOut, BookOpen } from "lucide-react";
+import { Shield, Users, CreditCard, Zap, Activity, ChevronRight, Lock, Key, RefreshCw, LogOut, BookOpen, Mail, Terminal, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getApiUrl } from "@/lib/api";
 import Header from "@/components/Header";
 import SimpleFooter from "@/components/SimpleFooter";
 import { toast } from "@/hooks/use-toast";
 
+interface Sponsor {
+    email: string;
+    name?: string;
+    tier: string;
+    coffee_id?: string;
+    is_active: boolean;
+    updated_at: string;
+}
+
 interface Stats {
     total_users: number;
     total_active_sponsors: number;
     total_decks_today: number;
+    sponsors: Sponsor[];
     timestamp: string;
 }
 
@@ -195,33 +205,78 @@ const AdminPage = () => {
                         </div>
                     </div>
 
-                    <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]">
-                        <h2 className="text-2xl font-black mb-6">Recent System Activity</h2>
-                        <div className="space-y-4">
-                            <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
-                                        <Shield className="w-5 h-5" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                        {/* Sponsors Table */}
+                        <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]">
+                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
+                                <CreditCard className="w-6 h-6 text-primary" />
+                                Recent Sponsors
+                            </h2>
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                                {stats?.sponsors && stats.sponsors.length > 0 ? (
+                                    stats.sponsors.map((s, i) => (
+                                        <div key={i} className="p-4 bg-muted/30 rounded-xl border-2 border-foreground/5 hover:border-primary/20 transition-all group">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <p className="font-black text-lg group-hover:text-primary transition-colors">{s.name || s.email.split('@')[0]}</p>
+                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                        <Mail className="w-3 h-3" />
+                                                        {s.email}
+                                                    </div>
+                                                </div>
+                                                <div className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black uppercase rounded-lg border border-primary/20">
+                                                    {s.tier}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-foreground/5">
+                                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                                    <Terminal className="w-3 h-3" />
+                                                    ID: {s.coffee_id || 'manual'}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {new Date(s.updated_at).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-foreground/10 rounded-2xl">
+                                        No sponsors found yet.
                                     </div>
-                                    <div>
-                                        <p className="font-bold">System Pulse Ok</p>
-                                        <p className="text-xs text-muted-foreground">Last sync: {new Date(stats?.timestamp || Date.now()).toLocaleString()}</p>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-black uppercase px-2 py-1 bg-green-500/10 text-green-500 rounded">Active</span>
+                                )}
                             </div>
-                            
-                            <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between opacity-50 grayscale">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                        <Zap className="w-5 h-5" />
+                        </div>
+
+                        {/* Recent System Activity */}
+                        <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]">
+                            <h2 className="text-2xl font-black mb-6">Recent System Activity</h2>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
+                                            <Shield className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold">System Pulse Ok</p>
+                                            <p className="text-xs text-muted-foreground">Last sync: {new Date(stats?.timestamp || Date.now()).toLocaleString()}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-bold">Broadcast Notifications</p>
-                                        <p className="text-xs text-muted-foreground">Feature coming when base reaches 50+ users</p>
-                                    </div>
+                                    <span className="text-xs font-black uppercase px-2 py-1 bg-green-500/10 text-green-500 rounded">Active</span>
                                 </div>
-                                <span className="text-xs font-black uppercase px-2 py-1 bg-muted text-muted-foreground rounded">Locked</span>
+                                
+                                <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between opacity-50 grayscale">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                            <Zap className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold">Broadcast Notifications</p>
+                                            <p className="text-xs text-muted-foreground">Feature coming when base reaches 50+ users</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-xs font-black uppercase px-2 py-1 bg-muted text-muted-foreground rounded">Locked</span>
+                                </div>
                             </div>
                         </div>
                     </div>

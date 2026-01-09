@@ -53,22 +53,27 @@ class SponsorChecker:
     def get_sponsor_tier(user_id: str) -> Optional[str]:
         """
         Get the sponsor tier for a user.
-        Returns tier name or None if not a sponsor.
+        Checks both 'sponsors' table and 'sponsor_tier' in 'profiles'.
         """
         try:
             sb = get_supabase()
             if not sb:
                 return None
             
-            response = (sb.from_('sponsors')
+            # 1. Check profiles first
+            profile_res = sb.table('profiles').select('is_sponsor, sponsor_tier').eq('id', user_id).maybeSingle().execute()
+            if profile_res.data and profile_res.data.get('is_sponsor'):
+                return profile_res.data.get('sponsor_tier', 'Premium')
+
+            # 2. Check sponsors table
+            sponsor_res = (sb.table('sponsors')
                 .select('tier, is_active')
                 .eq('user_id', user_id)
-                .single())
+                .maybeSingle()
+                .execute())
             
-            data = response.data
-            
-            if data and data.get('is_active', False):
-                return data.get('tier', 'supporter')
+            if sponsor_res.data and sponsor_res.data.get('is_active'):
+                return sponsor_res.data.get('tier', 'supporter')
             
             return None
             

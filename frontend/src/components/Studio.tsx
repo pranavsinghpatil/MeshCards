@@ -190,6 +190,7 @@ const Studio = () => {
   const [userApiKey, setUserApiKey] = useState<string>(() => localStorage.getItem("mesh_user_api_key") || "");
   const [currentProvider, setCurrentProvider] = useState<string>("gemini");
   const [issponsor, setIssponsor] = useState(false);
+  const [sponsorTier, setSponsorTier] = useState<string | null>(null);
   const [geminiMode, setGeminiMode] = useState<string>("shared"); // "shared" or "byok"
   const [novitaAccessMode, setNovitaAccessMode] = useState<string>("sponsors_only"); // "all" or "sponsors_only"
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -202,7 +203,7 @@ const Studio = () => {
             
             // Fetch profile data (including daily count and manual sponsor flag)
             const { data: profileData } = await sb.from('profiles')
-                .select('daily_count, is_sponsor')
+                .select('daily_count, is_sponsor, sponsor_tier')
                 .eq('id', session.user.id)
                 .maybeSingle();
             
@@ -210,6 +211,7 @@ const Studio = () => {
                 setDailyCount(profileData.daily_count);
                 if (profileData.is_sponsor) {
                     setIssponsor(true);
+                    setSponsorTier(profileData.sponsor_tier || "Premium");
                     return; // Already verified as sponsor via profiles
                 }
             }
@@ -217,12 +219,13 @@ const Studio = () => {
             // Fallback: Check dedicated sponsors table
             try {
                 const { data: sponsorData } = await sb.from('sponsors')
-                    .select('is_active')
+                    .select('is_active, tier')
                     .eq('user_id', session.user.id)
                     .maybeSingle();
                 
                 if (sponsorData?.is_active) {
                     setIssponsor(true);
+                    setSponsorTier(sponsorData.tier || "Supporter");
                 }
             } catch (e) {
                 console.error("Sponsor check failed catch:", e);
@@ -738,7 +741,7 @@ const Studio = () => {
                                         <Heart className="w-4 h-4 text-pink-500 shadow-sm fill-pink-500 animate-pulse" />
                                     </div>
                                     <span className="text-sm font-black uppercase tracking-wider bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                                        Premium Sponsor
+                                        {sponsorTier || 'Premium Sponsor'}
                                     </span>
                                     <span className="text-xl">💎</span>
                                 </div>
@@ -746,7 +749,7 @@ const Studio = () => {
                                     Thank you for your support, {user?.user_metadata?.full_name || user?.user_metadata?.name || 'Explorer'}! 🎉
                                 </p>
                                 <p className="text-xs text-muted-foreground font-medium">
-                                    You've unlocked **10 decks/day** and access to a massive selection of premium models (Llama 3.3, Mistral, Qwen, etc.). We're glad to have you!
+                                    Your **{sponsorTier || 'Premium'}** status gives you **10 decks/day** and access to a massive selection of premium models. We're glad to have you!
                                 </p>
                             </div>
                         </div>
@@ -853,10 +856,10 @@ const Studio = () => {
                             className="text-center text-sm font-medium mb-2 cursor-pointer hover:opacity-80 transition-opacity"
                         >
                              {(userApiKey || issponsor) ? (
-                                <div className="space-y-1">
+                                 <div className="space-y-1">
                                     <span className="text-primary flex items-center justify-center gap-2">
                                         <ShieldCheck className="w-4 h-4" />
-                                        {userApiKey ? "Using Private API Key (Unlimited)" : `Sponsor Mode: ${Math.max(0, 2 - dailyCount)} / 2 free tier remaining`}
+                                        {userApiKey ? "Using Private API Key (Unlimited)" : `Sponsor Mode: ${Math.max(0, 10 - dailyCount)} / 10 daily quota remaining`}
                                     </span>
                                 </div>
                             ) : (
