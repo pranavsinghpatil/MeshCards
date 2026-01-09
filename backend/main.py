@@ -651,6 +651,56 @@ async def github_webhook(request: Request):
     success = await handle_github_webhook(payload)
     return {"status": "success" if success else "failed"}
 
+# --- ADMIN CONTROL ROUTES ---
+
+@app.get("/api/admin/users")
+async def admin_list_users(x_admin_key: Optional[str] = Header(None)):
+    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    
+    sb = get_supabase()
+    res = sb.table('profiles').select('*').order('created_at', desc=True).limit(50).execute()
+    return res.data
+
+@app.post("/api/admin/users/{user_id}/toggle-sponsor")
+async def admin_toggle_sponsor(user_id: str, x_admin_key: Optional[str] = Header(None)):
+    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    
+    sb = get_supabase()
+    # Get current state
+    profile = sb.table('profiles').select('is_sponsor').eq('id', user_id).maybeSingle().execute()
+    if not profile.data:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    new_state = not profile.data.get('is_sponsor', False)
+    sb.table('profiles').update({
+        "is_sponsor": new_state,
+        "sponsor_tier": "Manual Premium" if new_state else None
+    }).eq('id', user_id).execute()
+    
+    # Also sync sponsors table
+    if new_state:
+        sb.table('sponsors').upsert({
+            "user_id": user_id,
+            "is_active": True,
+            "tier": "Manual Admin Support",
+            "updated_at": datetime.now().isoformat()
+        }, on_conflict="user_id").execute()
+    else:
+        sb.table('sponsors').update({"is_active": False}).eq('user_id', user_id).execute()
+    
+    return {"status": "success", "is_sponsor": new_state}
+
+@app.post("/api/admin/users/{user_id}/reset-quota")
+async def admin_reset_quota(user_id: str, x_admin_key: Optional[str] = Header(None)):
+    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    
+    sb = get_supabase()
+    sb.table('profiles').update({"daily_count": 0}).eq('id', user_id).execute()
+    return {"status": "success"}
+
 # Mount static files - MUST BE LAST
 # Mount static files - MUST BE LAST
 cwd = os.getcwd()
