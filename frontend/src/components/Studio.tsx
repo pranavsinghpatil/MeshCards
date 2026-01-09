@@ -200,22 +200,28 @@ const Studio = () => {
             const sb = getSupabase();
             if(!sb) return;
             
-            // Fetch daily count
-            const { data } = await sb.from('profiles').select('daily_count').eq('id', session.user.id).maybeSingle();
-            if(data) {
-                setDailyCount(data.daily_count);
+            // Fetch profile data (including daily count and manual sponsor flag)
+            const { data: profileData } = await sb.from('profiles')
+                .select('daily_count, is_sponsor')
+                .eq('id', session.user.id)
+                .maybeSingle();
+            
+            if(profileData) {
+                setDailyCount(profileData.daily_count);
+                if (profileData.is_sponsor) {
+                    setIssponsor(true);
+                    return; // Already verified as sponsor via profiles
+                }
             }
             
-            // Check sponsor status - handled safely
+            // Fallback: Check dedicated sponsors table
             try {
-                const { data: sponsorData, error: sponsorError } = await sb.from('sponsors')
-                    .select('is_active, tier')
+                const { data: sponsorData } = await sb.from('sponsors')
+                    .select('is_active')
                     .eq('user_id', session.user.id)
                     .maybeSingle();
                 
-                if (sponsorError) {
-                    console.warn("Sponsor check warning:", sponsorError.message);
-                } else if (sponsorData?.is_active) {
+                if (sponsorData?.is_active) {
                     setIssponsor(true);
                 }
             } catch (e) {

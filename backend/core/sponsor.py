@@ -19,27 +19,30 @@ class SponsorChecker:
     def is_sponsor(user_id: str) -> bool:
         """
         Check if the user is an active sponsor.
-        Returns True if sponsor, False otherwise.
+        Checks both 'sponsors' table and 'is_sponsor' flag in 'profiles'.
         """
         try:
             sb = get_supabase()
             if not sb:
-                logger.warning("Supabase not configured, sponsor check disabled")
                 return False
             
-            # Query sponsors table
-            response = (sb.from_('sponsors')
+            # 1. Check profiles table first (common for manual edits)
+            profile_res = sb.table('profiles').select('is_sponsor').eq('id', user_id).maybeSingle().execute()
+            if profile_res.data and profile_res.data.get('is_sponsor'):
+                logger.info(f"User {user_id} verified as sponsor via profiles table")
+                return True
+
+            # 2. Check dedicated sponsors table
+            sponsor_res = (sb.table('sponsors')
                 .select('is_active')
                 .eq('user_id', user_id)
-                .single())
+                .maybeSingle()
+                .execute())
             
-            data = response.data
-            
-            if data and data.get('is_active', False):
-                logger.info(f"User {user_id} verified as sponsor")
+            if sponsor_res.data and sponsor_res.data.get('is_active'):
+                logger.info(f"User {user_id} verified as sponsor via sponsors table")
                 return True
             
-            logger.info(f"User {user_id} is not a sponsor")
             return False
             
         except Exception as e:
