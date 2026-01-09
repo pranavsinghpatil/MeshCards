@@ -151,24 +151,6 @@ const AdminPage = () => {
         }
     };
 
-    const seedDemoData = async () => {
-        setIsActionLoading('seed');
-        try {
-            const response = await fetch(getApiUrl("/api/admin/seed-demo"), {
-                method: 'POST',
-                headers: { "X-Admin-Key": adminKey }
-            });
-            if (response.ok) {
-                toast({ title: "Success", description: "Demo users added to DB." });
-                fetchUsers(adminKey);
-                fetchStats(adminKey);
-            }
-        } catch (error) {
-            toast({ variant: "destructive", title: "Error", description: "Failed to seed data." });
-        } finally {
-            setIsActionLoading(null);
-        }
-    };
 
     useEffect(() => {
         const savedKey = localStorage.getItem("mesh_admin_key");
@@ -229,7 +211,7 @@ const AdminPage = () => {
                                 <label className="text-sm font-bold uppercase tracking-widest text-muted-foreground ml-1">Master Key</label>
                                 <div className="relative">
                                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                    <input type="password" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" className="w-full bg-muted border-2 border-foreground/20 rounded-xl pl-10 pr-4 py-3 font-mono text-lg focus:border-primary transition-all outline-none" required />
+                                    <input type="password" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} placeholder="••••••••••••" className="w-full bg-muted border-2 border-foreground/20 rounded-xl pl-10 pr-4 py-3 font-mono text-lg focus:border-primary transition-all outline-none" required />
                                 </div>
                             </div>
                             <Button type="submit" className="w-full py-6 text-lg font-black rounded-xl shadow-[4px_4px_0_0_hsl(var(--foreground))] border-2 border-foreground hover:translate-y-[2px] hover:shadow-none transition-all">Authenticate Master</Button>
@@ -256,109 +238,109 @@ const AdminPage = () => {
                             <p className="text-muted-foreground text-lg font-medium">Operate and control MeshCards in real-time.</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <button onClick={() => { localStorage.removeItem(\"mesh_admin_key\"); setIsAuthenticated(false); setAdminKey(\"\"); }} className=\"flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-foreground/10 hover:bg-muted font-bold transition-all text-sm\"><LogOut className=\"w-4 h-4\" />Logout</button>
-                            <Button onClick={() => fetchStats(adminKey)} className=\"px-6 h-12 rounded-xl font-bold bg-primary text-primary-foreground border-2 border-foreground shadow-[4px_4px_0_0_hsl(var(--foreground))] hover:translate-y-[2px] hover:shadow-none transition-all\"><RefreshCw className=\"w-4 h-4 mr-2\" />Refresh All</Button>
+                            <button onClick={() => { localStorage.removeItem("mesh_admin_key"); setIsAuthenticated(false); setAdminKey(""); }} className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-foreground/10 hover:bg-muted font-bold transition-all text-sm"><LogOut className="w-4 h-4" />Logout</button>
+                            <Button onClick={() => fetchStats(adminKey)} className="px-6 h-12 rounded-xl font-bold bg-primary text-primary-foreground border-2 border-foreground shadow-[4px_4px_0_0_hsl(var(--foreground))] hover:translate-y-[2px] hover:shadow-none transition-all"><RefreshCw className="w-4 h-4 mr-2" />Refresh All</Button>
                         </div>
                     </div>
 
-                    <div className=\"grid grid-cols-1 md:grid-cols-3 gap-8 mb-12\">
-                        <div className=\"bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))] relative overflow-hidden group\">
-                            <div className=\"absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity\"><Users className=\"w-32 h-32\" /></div>
-                            <p className=\"text-sm font-black uppercase tracking-widest text-muted-foreground mb-1\">Total Users</p>
-                            <h3 className=\"text-6xl font-black tracking-tighter mb-4\">{stats?.total_users || 0}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                        <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))] relative overflow-hidden group">
+                            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity"><Users className="w-32 h-32" /></div>
+                            <p className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-1">Total Users</p>
+                            <h3 className="text-6xl font-black tracking-tighter mb-4">{stats?.total_users || 0}</h3>
                         </div>
-                        <div className=\"bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--primary))] relative overflow-hidden group\">
-                            <div className=\"absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity\"><CreditCard className=\"w-32 h-32\" /></div>
-                            <p className=\"text-sm font-black uppercase tracking-widest text-primary mb-1\">Active Sponsors</p>
-                            <h3 className=\"text-6xl font-black tracking-tighter mb-4 text-primary\">{stats?.total_active_sponsors || 0}</h3>
+                        <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--primary))] relative overflow-hidden group">
+                            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity"><CreditCard className="w-32 h-32" /></div>
+                            <p className="text-sm font-black uppercase tracking-widest text-primary mb-1">Active Sponsors</p>
+                            <h3 className="text-6xl font-black tracking-tighter mb-4 text-primary">{stats?.total_active_sponsors || 0}</h3>
                         </div>
-                        <div className=\"bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))] relative overflow-hidden group\">
-                             <div className=\"absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity\"><BookOpen className=\"w-32 h-32\" /></div>
-                            <p className=\"text-sm font-black uppercase tracking-widest text-muted-foreground mb-1\">Decks Today</p>
-                            <h3 className=\"text-6xl font-black tracking-tighter mb-4\">{stats?.total_decks_today || 0}</h3>
-                            <div className=\"mt-4 h-2 w-full bg-muted rounded-full overflow-hidden border border-foreground/5\">
-                                <div className=\"h-full bg-yellow-500 transition-all duration-1000\" style={{ width: `${Math.min(100, (stats?.total_decks_today || 0) / 100 * 100)}%` }} />
+                        <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))] relative overflow-hidden group">
+                             <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity"><BookOpen className="w-32 h-32" /></div>
+                            <p className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-1">Decks Today</p>
+                            <h3 className="text-6xl font-black tracking-tighter mb-4">{stats?.total_decks_today || 0}</h3>
+                            <div className="mt-4 h-2 w-full bg-muted rounded-full overflow-hidden border border-foreground/5">
+                                <div className="h-full bg-yellow-500 transition-all duration-1000" style={{ width: `${Math.min(100, (stats?.total_decks_today || 0) / 100 * 100)}%` }} />
                             </div>
                         </div>
                     </div>
 
-                    <Tabs defaultValue=\"users\" className=\"space-y-8\">
-                        <TabsList className=\"bg-muted p-1 rounded-2xl border-2 border-foreground h-16 w-full md:w-auto\">
-                            <TabsTrigger value=\"users\" className=\"rounded-xl h-full px-8 font-black data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all\">USER DIRECTORY</TabsTrigger>
-                            <TabsTrigger value=\"sponsors\" className=\"rounded-xl h-full px-8 font-black data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all\">RECENT SPONSORS</TabsTrigger>
-                            <TabsTrigger value=\"system\" className=\"rounded-xl h-full px-8 font-black data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all\">SYSTEM PULSE</TabsTrigger>
+                    <Tabs defaultValue="users" className="space-y-8">
+                        <TabsList className="bg-muted p-1 rounded-2xl border-2 border-foreground h-16 w-full md:w-auto">
+                            <TabsTrigger value="users" className="rounded-xl h-full px-8 font-black data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">USER DIRECTORY</TabsTrigger>
+                            <TabsTrigger value="sponsors" className="rounded-xl h-full px-8 font-black data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">RECENT SPONSORS</TabsTrigger>
+                            <TabsTrigger value="system" className="rounded-xl h-full px-8 font-black data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">SYSTEM PULSE</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value=\"users\" className=\"space-y-6\">
-                            <div className=\"bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]\">
-                                <div className=\"flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8\">
-                                    <h2 className=\"text-2xl font-black flex items-center gap-3\"><Users className=\"w-6 h-6 text-primary\" />Operate Users</h2>
-                                    <div className=\"relative w-full md:w-96\">
-                                        <Search className=\"absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground\" />
-                                        <input type=\"text\" placeholder=\"Search by name, email or ID...\" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className=\"w-full bg-muted border-2 border-foreground/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-primary transition-all outline-none\" />
+                        <TabsContent value="users" className="space-y-6">
+                            <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                                    <h2 className="text-2xl font-black flex items-center gap-3"><Users className="w-6 h-6 text-primary" />Operate Users</h2>
+                                    <div className="relative w-full md:w-96">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <input type="text" placeholder="Search by name, email or ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-muted border-2 border-foreground/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-primary transition-all outline-none" />
                                     </div>
                                 </div>
 
-                                <div className=\"overflow-x-auto\">
-                                    <table className=\"w-full border-collapse\">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full border-collapse">
                                         <thead>
-                                            <tr className=\"border-b-2 border-foreground/5 text-left bg-muted/20\">
-                                                <th className=\"py-4 px-4 text-xs font-black uppercase tracking-widest\">User Details</th>
-                                                <th className=\"py-4 px-4 text-xs font-black uppercase tracking-widest text-center\">Status</th>
-                                                <th className=\"py-4 px-4 text-xs font-black uppercase tracking-widest text-center\">Usage</th>
-                                                <th className=\"py-4 px-4 text-xs font-black uppercase tracking-widest text-right\">Target Tier</th>
-                                                <th className=\"py-4 px-4 text-xs font-black uppercase tracking-widest text-right\">Actions</th>
+                                            <tr className="border-b-2 border-foreground/5 text-left bg-muted/20">
+                                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest">User Details</th>
+                                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-center">Status</th>
+                                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-center">Usage</th>
+                                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-right">Target Tier</th>
+                                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-right">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className=\"divide-y divide-foreground/5\">
+                                        <tbody className="divide-y divide-foreground/5">
                                             {filteredUsers.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={5} className=\"py-20 text-center\">
-                                                        <div className=\"flex flex-col items-center justify-center text-muted-foreground\">
-                                                            <Users className=\"w-12 h-12 mb-4 opacity-20\" />
-                                                            <p className=\"font-bold text-lg text-foreground\">No Users Registered Yet</p>
-                                                            <p className=\"max-w-xs mx-auto text-sm mt-1\">Users appear here after they generate their first deck.</p>
-                                                            <Button variant=\"outline\" onClick={() => syncCurrentAccount(adminKey)} className=\"mt-6 border-2 font-black\">SYNC MY ACCOUNT</Button>
+                                                    <td colSpan={5} className="py-20 text-center">
+                                                        <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                                            <Users className="w-12 h-12 mb-4 opacity-20" />
+                                                            <p className="font-bold text-lg text-foreground">No Users Registered Yet</p>
+                                                            <p className="max-w-xs mx-auto text-sm mt-1">Users appear here after they generate their first deck.</p>
+                                                            <Button variant="outline" onClick={() => syncCurrentAccount(adminKey)} className="mt-6 border-2 font-black">SYNC MY ACCOUNT</Button>
                                                         </div>
                                                     </td>
                                                 </tr>
                                             ) : (
                                                 filteredUsers.map((u) => (
-                                                    <tr key={u.id} className=\"group hover:bg-muted/30 transition-colors\">
-                                                        <td className=\"py-4 px-4\">
-                                                            <div className=\"font-bold truncate max-w-[200px]\">{u.full_name || 'Anonymous User'}</div>
-                                                            <div className=\"text-xs text-muted-foreground flex items-center gap-1\">
+                                                    <tr key={u.id} className="group hover:bg-muted/30 transition-colors">
+                                                        <td className="py-4 px-4">
+                                                            <div className="font-bold truncate max-w-[200px]">{u.full_name || 'Anonymous User'}</div>
+                                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
                                                                 <span>{u.email || 'No email'}</span>
-                                                                {u.email && <button onClick={() => copyToClipboard(u.email!)} className=\"opacity-0 group-hover:opacity-100 hover:text-primary transition-all\"><Copy className=\"w-3 h-3\" /></button>}
+                                                                {u.email && <button onClick={() => copyToClipboard(u.email!)} className="opacity-0 group-hover:opacity-100 hover:text-primary transition-all"><Copy className="w-3 h-3" /></button>}
                                                             </div>
-                                                            <div className=\"text-[10px] text-muted-foreground/50 mt-1 font-mono\">{u.id}</div>
+                                                            <div className="text-[10px] text-muted-foreground/50 mt-1 font-mono">{u.id}</div>
                                                         </td>
-                                                        <td className=\"py-4 px-4 text-center\">
-                                                            {u.is_sponsor ? <Badge className=\"bg-primary text-primary-foreground font-black\">SPONSOR</Badge> : <Badge variant=\"secondary\" className=\"font-bold opacity-50\">FREE</Badge>}
+                                                        <td className="py-4 px-4 text-center">
+                                                            {u.is_sponsor ? <Badge className="bg-primary text-primary-foreground font-black">SPONSOR</Badge> : <Badge variant="secondary" className="font-bold opacity-50">FREE</Badge>}
                                                         </td>
-                                                        <td className=\"py-4 px-4 text-center\">
-                                                            <div className=\"font-black text-xl\">{u.daily_count}</div>
-                                                            <div className=\"text-[10px] uppercase font-black text-muted-foreground\">Today</div>
+                                                        <td className="py-4 px-4 text-center">
+                                                            <div className="font-black text-xl">{u.daily_count}</div>
+                                                            <div className="text-[10px] uppercase font-black text-muted-foreground">Today</div>
                                                         </td>
-                                                        <td className=\"py-4 px-4 text-right\">
+                                                        <td className="py-4 px-4 text-right">
                                                             {!u.is_sponsor && (
                                                                 <select 
-                                                                    value={userTiers[u.id] || \"Premium\"}
+                                                                    value={userTiers[u.id] || "Premium"}
                                                                     onChange={(e) => setUserTiers({...userTiers, [u.id]: e.target.value})}
-                                                                    className=\"bg-muted border border-foreground/10 rounded-lg px-2 py-1 text-[10px] font-bold outline-none focus:border-primary\"
+                                                                    className="bg-muted border border-foreground/10 rounded-lg px-2 py-1 text-[10px] font-bold outline-none focus:border-primary"
                                                                 >
                                                                     {tiers.map(t => <option key={t} value={t}>{t}</option>)}
                                                                 </select>
                                                             )}
-                                                            {u.is_sponsor && <span className=\"text-[10px] font-black text-primary\">{u.sponsor_tier || 'Premium'}</span>}
+                                                            {u.is_sponsor && <span className="text-[10px] font-black text-primary">{u.sponsor_tier || 'Premium'}</span>}
                                                         </td>
-                                                        <td className=\"py-4 px-4 text-right\">
-                                                            <div className=\"flex items-center justify-end gap-2\">
-                                                                <Button onClick={() => toggleSponsor(u.id)} disabled={!!isActionLoading} variant=\"outline\" size=\"sm\" className={`h-9 border-2 font-black text-[10px] rounded-lg ${u.is_sponsor ? 'border-red-500/20 text-red-500 hover:bg-red-50' : 'border-primary/20 text-primary'}`}>
-                                                                    {isActionLoading === u.id + '-sponsor' ? <RefreshCw className=\"w-3 h-3 animate-spin\" /> : (u.is_sponsor ? <><UserMinus className=\"w-3 h-3 mr-1\" /> REVOKE</> : <><UserPlus className=\"w-3 h-3 mr-1\" /> GRANT</>)}
+                                                        <td className="py-4 px-4 text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <Button onClick={() => toggleSponsor(u.id)} disabled={!!isActionLoading} variant="outline" size="sm" className={`h-9 border-2 font-black text-[10px] rounded-lg ${u.is_sponsor ? 'border-red-500/20 text-red-500 hover:bg-red-50' : 'border-primary/20 text-primary'}`}>
+                                                                    {isActionLoading === u.id + '-sponsor' ? <RefreshCw className="w-3 h-3 animate-spin" /> : (u.is_sponsor ? <><UserMinus className="w-3 h-3 mr-1" /> REVOKE</> : <><UserPlus className="w-3 h-3 mr-1" /> GRANT</>)}
                                                                 </Button>
-                                                                <Button onClick={() => resetQuota(u.id)} disabled={!!isActionLoading} variant=\"ghost\" size=\"sm\" className=\"h-9 font-black text-[10px] text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/10 rounded-lg\">
-                                                                    {isActionLoading === u.id + '-quota' ? <RefreshCw className=\"w-3 h-3 animate-spin\" /> : <><RotateCcw className=\"w-3 h-3 mr-1\" /> RESET</>}
+                                                                <Button onClick={() => resetQuota(u.id)} disabled={!!isActionLoading} variant="ghost" size="sm" className="h-9 font-black text-[10px] text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/10 rounded-lg">
+                                                                    {isActionLoading === u.id + '-quota' ? <RefreshCw className="w-3 h-3 animate-spin" /> : <><RotateCcw className="w-3 h-3 mr-1" /> RESET</>}
                                                                 </Button>
                                                             </div>
                                                         </td>
@@ -371,75 +353,66 @@ const AdminPage = () => {
                             </div>
                         </TabsContent>
 
-                        <TabsContent value=\"sponsors\" className=\"space-y-6\">
-                            <div className=\"bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]\">
-                                <h2 className=\"text-2xl font-black mb-8 flex items-center gap-3\"><CreditCard className=\"w-6 h-6 text-primary\" />Recent Financial Activity</h2>
-                                <div className=\"grid grid-cols-1 md:grid-cols-2 gap-4\">
+                        <TabsContent value="sponsors" className="space-y-6">
+                            <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]">
+                                <h2 className="text-2xl font-black mb-8 flex items-center gap-3"><CreditCard className="w-6 h-6 text-primary" />Recent Financial Activity</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {stats?.sponsors && stats.sponsors.length > 0 ? (
                                         stats.sponsors.map((s, i) => (
-                                            <div key={i} className=\"p-6 bg-muted/30 rounded-2xl border-2 border-foreground/5 hover:border-primary/20 transition-all group relative overflow-hidden\">
-                                                <div className=\"absolute top-2 right-2 opacity-5\"><Zap className=\"w-12 h-12\" /></div>
-                                                <div className=\"flex justify-between items-start mb-4\">
+                                            <div key={i} className="p-6 bg-muted/30 rounded-2xl border-2 border-foreground/5 hover:border-primary/20 transition-all group relative overflow-hidden">
+                                                <div className="absolute top-2 right-2 opacity-5"><Zap className="w-12 h-12" /></div>
+                                                <div className="flex justify-between items-start mb-4">
                                                     <div>
-                                                        <p className=\"font-black text-xl group-hover:text-primary transition-colors\">{s.name || s.email.split('@')[0]}</p>
-                                                        <button onClick={() => copyToClipboard(s.email)} className=\"flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors\"><Mail className=\"w-3 h-3\" />{s.email}</button>
+                                                        <p className="font-black text-xl group-hover:text-primary transition-colors">{s.name || s.email.split('@')[0]}</p>
+                                                        <button onClick={() => copyToClipboard(s.email)} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors"><Mail className="w-3 h-3" />{s.email}</button>
                                                     </div>
-                                                    <Badge className=\"bg-primary/20 text-primary border-primary/20 font-black\">{s.tier}</Badge>
+                                                    <Badge className="bg-primary/20 text-primary border-primary/20 font-black">{s.tier}</Badge>
                                                 </div>
-                                                <div className=\"flex items-center justify-between pt-4 border-t border-foreground/5 font-mono text-[10px] text-muted-foreground\">
-                                                    <div className=\"flex items-center gap-1\"><Terminal className=\"w-3 h-3\" />ID: {s.coffee_id || 'manual'}</div>
-                                                    <div className=\"flex items-center gap-1\"><Calendar className=\"w-3 h-3\" />{new Date(s.updated_at).toLocaleDateString()}</div>
+                                                <div className="flex items-center justify-between pt-4 border-t border-foreground/5 font-mono text-[10px] text-muted-foreground">
+                                                    <div className="flex items-center gap-1"><Terminal className="w-3 h-3" />ID: {s.coffee_id || 'manual'}</div>
+                                                    <div className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(s.updated_at).toLocaleDateString()}</div>
                                                 </div>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className=\"col-span-full text-center py-20 text-muted-foreground border-4 border-dashed border-foreground/5 rounded-3xl\">No sponsor data found yet.</div>
+                                        <div className="col-span-full text-center py-20 text-muted-foreground border-4 border-dashed border-foreground/5 rounded-3xl">No sponsor data found yet.</div>
                                     )}
                                 </div>
                             </div>
                         </TabsContent>
 
-                        <TabsContent value=\"system\" className=\"space-y-6\">
-                            <div className=\"bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]\">
-                                <h2 className=\"text-2xl font-black mb-6 flex items-center gap-3\"><Activity className=\"w-6 h-6 text-green-500\" />System Health</h2>
-                                <div className=\"space-y-4\">
-                                    <div className=\"p-5 bg-muted/30 rounded-2xl border-2 border-green-500/10 flex items-center justify-between\">
-                                        <div className=\"flex items-center gap-4\">
-                                            <div className=\"w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20\"><Shield className=\"w-6 h-6\" /></div>
+                        <TabsContent value="system" className="space-y-6">
+                            <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]">
+                                <h2 className="text-2xl font-black mb-6 flex items-center gap-3"><Activity className="w-6 h-6 text-green-500" />System Health</h2>
+                                <div className="space-y-4">
+                                    <div className="p-5 bg-muted/30 rounded-2xl border-2 border-green-500/10 flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 border border-green-500/20"><Shield className="w-6 h-6" /></div>
                                             <div>
-                                                <p className=\"font-black text-lg\">Backend Core Active</p>
-                                                <p className=\"text-xs text-muted-foreground\">API responses are within nominal limits.</p>
+                                                <p className="font-black text-lg">Backend Core Active</p>
+                                                <p className="text-xs text-muted-foreground">API responses are within nominal limits.</p>
                                             </div>
                                         </div>
-                                        <Badge variant=\"outline\" className=\"border-green-500/50 text-green-500 font-black px-4 py-1\">ONLINE</Badge>
+                                        <Badge variant="outline" className="border-green-500/50 text-green-500 font-black px-4 py-1">ONLINE</Badge>
                                     </div>
-                                    <div className=\"p-5 bg-muted/30 rounded-2xl border-2 border-foreground/5 flex items-center justify-between opacity-50\">
-                                        <div className=\"flex items-center gap-4\">
-                                            <div className=\"w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20\"><Zap className=\"w-6 h-6\" /></div>
+                                    <div className="p-5 bg-muted/30 rounded-2xl border-2 border-foreground/5 flex items-center justify-between opacity-50">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20"><Zap className="w-6 h-6" /></div>
                                             <div>
-                                                <p className=\"font-black text-lg\">Broadcast Module</p>
-                                                <p className=\"text-xs text-muted-foreground\">Notification engine waiting for 50+ users.</p>
+                                                <p className="font-black text-lg">Broadcast Module</p>
+                                                <p className="text-xs text-muted-foreground">Notification engine waiting for 50+ users.</p>
                                             </div>
                                         </div>
-                                        <Badge variant=\"secondary\" className=\"font-black px-4 py-1\">LOCKED</Badge>
+                                        <Badge variant="secondary" className="font-black px-4 py-1">LOCKED</Badge>
                                     </div>
 
-                                    <div className=\"pt-6 border-t border-foreground/5\">
-                                        <p className=\"text-xs font-black uppercase tracking-widest text-muted-foreground mb-4\">Debug Tools</p>
-                                        <div className=\"flex gap-4\">
-                                            <Button 
-                                                onClick={seedDemoData} 
-                                                disabled={!!isActionLoading}
-                                                variant=\"outline\" 
-                                                className=\"border-2 border-primary/20 hover:border-primary text-primary font-black\"
-                                            >
-                                                {isActionLoading === 'seed' ? <RefreshCw className=\"w-4 h-4 animate-spin mr-2\" /> : <Zap className=\"w-4 h-4 mr-2\" />}
-                                                Seed Demo Users
-                                            </Button>
+                                    <div className="pt-6 border-t border-foreground/5">
+                                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-4">Debug Tools</p>
+                                        <div className="flex gap-4">
                                             <Button 
                                                 onClick={() => syncCurrentAccount(adminKey)}
-                                                variant=\"ghost\" 
-                                                className=\"font-black text-muted-foreground\"
+                                                variant="ghost" 
+                                                className="font-black text-muted-foreground"
                                             >
                                                 Force Sync Me
                                             </Button>

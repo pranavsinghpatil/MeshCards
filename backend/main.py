@@ -711,21 +711,6 @@ async def admin_reset_quota(user_id: str, x_admin_key: Optional[str] = Header(No
     sb.table('profiles').update({"daily_count": 0}).eq('id', user_id).execute()
     return {"status": "success"}
 
-@app.post("/api/admin/seed-demo")
-async def admin_seed_demo(x_admin_key: Optional[str] = Header(None)):
-    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
-        raise HTTPException(status_code=403, detail="Invalid admin key")
-    
-    sb = get_supabase()
-    demo_users = [
-        {"id": f"demo-{i}", "email": f"user{i}@example.com", "full_name": f"Demo User {i}", "daily_count": random.randint(0, 2), "last_reset": datetime.now().date().isoformat()}
-        for i in range(1, 4)
-    ]
-    
-    for u in demo_users:
-        sb.table('profiles').upsert(u, on_conflict="id").execute()
-    
-    return {"status": "success", "message": "Demo data seeded"}
 
 @app.post("/api/admin/sync-current")
 async def admin_sync_current(request: Request, x_admin_key: Optional[str] = Header(None)):
