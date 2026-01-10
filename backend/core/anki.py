@@ -19,10 +19,12 @@ class AnkiDeckBuilder:
             templates=[
                 {
                     'name': 'Card 1',
-                    'qfmt': '{{Question}}<br>{{Image}}',
-                    'afmt': '{{FrontSide}}<hr id="answer">{{Answer}}',
+                    'qfmt': '{{MathJax}}<div style="text-align: center;">{{Question}}</div><br>{{Image}}',
+                    'afmt': '{{FrontSide}}<hr id="answer"><div style="text-align: center;">{{Answer}}</div>',
                 },
-            ])
+            ],
+            css='.card { font-family: arial; font-size: 20px; text-align: center; color: black; background-color: white; }\n.mathjx { font-size: 1.2em; }'
+        )
         
         # Cloze Model
         self.cloze_model = genanki.Model(
@@ -37,10 +39,12 @@ class AnkiDeckBuilder:
             templates=[
                 {
                     'name': 'Cloze',
-                    'qfmt': '{{cloze:Text}}<br>{{Image}}',
-                    'afmt': '{{cloze:Text}}<br>{{Image}}<br><hr>{{Extra}}',
+                    'qfmt': '{{MathJax}}{{cloze:Text}}<br>{{Image}}',
+                    'afmt': '{{MathJax}}{{cloze:Text}}<br>{{Image}}<br><hr>{{Extra}}',
                 },
-            ])
+            ],
+            css='.card { font-family: arial; font-size: 20px; text-align: center; color: black; background-color: white; }\n.cloze { font-weight: bold; color: blue; }'
+        )
 
     def create_apkg(self, cards: List[Flashcard], deck_name: str, output_path: str):
         # Generate a random deck ID

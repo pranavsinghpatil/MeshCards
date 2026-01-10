@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, FileText, X, Download, RefreshCw, ChevronDown, Copy, Check, Settings, Sparkles, BookOpen, ExternalLink, ArrowRight, Heart, ShieldCheck, Zap, Image as ImageIcon } from "lucide-react";
+import { Upload, FileText, X, Download, RefreshCw, ChevronDown, Copy, Check, Settings, Sparkles, BookOpen, ExternalLink, ArrowRight, Heart, ShieldCheck, Zap, Image as ImageIcon, Shield, Activity, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { getSupabase } from "@/lib/supabase";
@@ -172,7 +173,7 @@ const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId:
 };
 
 const Studio = () => {
-  const { session, user } = useAuth();
+  const { session, user, isSponsor } = useAuth();
   const [text, setText] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -189,52 +190,29 @@ const Studio = () => {
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [userApiKey, setUserApiKey] = useState<string>(() => localStorage.getItem("mesh_user_api_key") || "");
   const [currentProvider, setCurrentProvider] = useState<string>("gemini");
-  const [issponsor, setIssponsor] = useState(false);
-  const [sponsorTier, setSponsorTier] = useState<string | null>(null);
-  const [geminiMode, setGeminiMode] = useState<string>("shared"); // "shared" or "byok"
-  const [novitaAccessMode, setNovitaAccessMode] = useState<string>("sponsors_only"); // "all" or "sponsors_only"
+  const [geminiMode, setGeminiMode] = useState<string>("shared"); 
+  const [novitaAccessMode, setNovitaAccessMode] = useState<string>("sponsors_only"); 
+  const [modelTab, setModelTab] = useState<"standard" | "high_logic">("standard");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (session?.user) {
-        const fetchProfile = async () => {
+        const fetchUsage = async () => {
             const sb = getSupabase();
             if(!sb) return;
             
-            // Fetch profile data (including daily count and manual sponsor flag)
             const { data: profileData } = await sb.from('profiles')
-                .select('daily_count, is_sponsor, sponsor_tier')
+                .select('daily_count')
                 .eq('id', session.user.id)
                 .maybeSingle();
             
             if(profileData) {
                 setDailyCount(profileData.daily_count);
-                if (profileData.is_sponsor) {
-                    setIssponsor(true);
-                    setSponsorTier(profileData.sponsor_tier || "Premium");
-                    return; // Already verified as sponsor via profiles
-                }
             } else {
-                // New user - default to 0
                 setDailyCount(0);
             }
-            
-            // Fallback: Check dedicated sponsors table
-            try {
-                const { data: sponsorData } = await sb.from('sponsors')
-                    .select('is_active, tier')
-                    .eq('user_id', session.user.id)
-                    .maybeSingle();
-                
-                if (sponsorData?.is_active) {
-                    setIssponsor(true);
-                    setSponsorTier(sponsorData.tier || "Supporter");
-                }
-            } catch (e) {
-                console.error("Sponsor check failed catch:", e);
-            }
         };
-        fetchProfile();
+        fetchUsage();
     }
   }, [session]);
 
@@ -250,6 +228,10 @@ const Studio = () => {
           }
           if (config.novita_access_mode) {
             setNovitaAccessMode(config.novita_access_mode);
+          }
+          // Auto-switch tab if sponsor and using a high reasoning model
+          if (["meta-llama/llama-3.3-70b-instruct", "qwen/qwen-2.5-7b-instruct", "mistralai/mistral-small-2409"].includes(aiModel)) {
+              setModelTab("high_logic");
           }
         }
       } catch (error) {
@@ -732,28 +714,34 @@ const Studio = () => {
                     </h2>
                     
                     {/* Sponsor Thank You Badge */}
-                    {issponsor && (
-                        <div className="mb-6 relative overflow-hidden rounded-xl border-2 border-primary/30 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 p-4">
-                            {/* Animated background effect */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 animate-pulse" />
+                    {isSponsor && (
+                        <div className="mb-6 relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-background to-pink-500/10 p-5 shadow-[4px_4px_0_0_hsl(var(--primary)/0.2)]">
+                            <div className="absolute -right-4 -top-4 opacity-10 rotate-12">
+                                <Sparkles className="w-24 h-24 text-primary" />
+                            </div>
                             
                             <div className="relative z-10">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="flex items-center gap-1">
-                                        <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                                        <Heart className="w-4 h-4 text-pink-500 shadow-sm fill-pink-500 animate-pulse" />
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="flex -space-x-1">
+                                        <div className="bg-primary p-1.5 rounded-lg shadow-lg">
+                                            <Heart className="w-5 h-5 text-white fill-current" />
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-black uppercase tracking-wider bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                                        {sponsorTier || 'Premium Sponsor'}
+                                    <span className="text-sm font-black uppercase tracking-widest bg-gradient-to-r from-primary to-pink-600 bg-clip-text text-transparent">
+                                        Verified Sponsor
                                     </span>
-                                    <span className="text-xl">💎</span>
+                                    <Badge className="bg-primary text-white font-black animate-bounce px-2 py-0">LIVE</Badge>
                                 </div>
-                                <p className="text-sm font-black text-foreground mb-1">
-                                    Thank you for your support, {user?.user_metadata?.full_name || user?.user_metadata?.name || 'Explorer'}! 🎉
+                                <h3 className="text-xl font-black text-foreground mb-1 leading-tight">
+                                    You're making this possible, {user?.user_metadata?.full_name?.split(' ')[0] || 'Explorer'}!
+                                </h3>
+                                <p className="text-sm text-muted-foreground font-medium mb-4">
+                                    Your support keeps the servers running. You have **Daily 5 Decks** and **Full Access** to our high-performance core models below.
                                 </p>
-                                <p className="text-xs text-muted-foreground font-medium">
-                                    Your **{sponsorTier || 'Premium'}** status gives you **10 decks/day** and access to a massive selection of premium models. We're glad to have you!
-                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="border-primary/30 text-primary font-bold bg-primary/5">UNLOCKED: Llama 3.3</Badge>
+                                    <Badge variant="outline" className="border-primary/30 text-primary font-bold bg-primary/5">UNLOCKED: Qwen 2.5</Badge>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -765,49 +753,123 @@ const Studio = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">AI Model</label>
-                        <div className="relative">
-                        <select 
-                            value={aiModel} 
-                            onChange={(e) => {
-                                const selectedModel = e.target.value;
-                                setAiModel(selectedModel);
-                                
-                                // Update provider based on model selection
-                                if (selectedModel.startsWith('llama') || selectedModel.startsWith('mistral') || selectedModel.startsWith('qwen')) {
-                                    setCurrentProvider('novita');
-                                } else {
-                                    setCurrentProvider('gemini');
-                                }
-                            }} 
-                            className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-3 py-2 text-sm cursor-pointer font-bold"
-                        >
-                            <optgroup label="Gemini (Standard)">
-                                <option value="gemini-2.0-flash">Gemini 2.0 Flash — Best Balance (Next Gen)</option>
-                                <option value="gemini-1.5-pro">Gemini 1.5 Pro — Highest Intelligence</option>
-                                <option value="gemini-1.5-flash">Gemini 1.5 Flash — Fast & Reliable</option>
-                                <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B — Lightweight</option>
-                                
-                                <option disabled>─────────────────────────</option>
-                                <option value="gemini-3-pro">Gemini 3 Pro (Experimental Ultra)</option>
-                                <option value="gemini-3-flash">Gemini 3 Flash (Experimental Speed)</option>
-                            </optgroup>
-                            {(issponsor || novitaAccessMode === 'all') ? (
-                                <optgroup label={issponsor ? "🌟 Premium Models (Sponsor Choice) 💎" : "🌟 Premium Models"}>
-                                    <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B — Best Value! ⭐</option>
-                                    <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 7B — Ultra Cheap! 💰</option>
-                                    <option value="mistralai/mistral-small-2409">Mistral Small — Balanced</option>
-                                    <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B — Reliable</option>
-                                </optgroup>
-                            ) : (
-                                <optgroup label="🔒 Premium Models (Sponsors Only)">
-                                    <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B (Locked 🔒)</option>
-                                    <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 7B (Locked 🔒)</option>
-                                    <option value="mistralai/mistral-small-2409">Mistral Small (Locked 🔒)</option>
-                                </optgroup>
+                        <label className="block text-sm font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center justify-between">
+                            <span>Intelligence Engine</span>
+                            <Badge variant="outline" className="text-[9px] uppercase tracking-tighter border-foreground/10">
+                                {modelTab === "standard" ? "Core" : "High Reasoning"}
+                            </Badge>
+                        </label>
+                        
+                        <div className="flex gap-1 p-1 bg-muted/50 rounded-xl border-2 border-foreground/5 mb-4">
+                            <button 
+                                onClick={() => setModelTab("standard")}
+                                className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${modelTab === "standard" ? "bg-emerald-600 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]" : "text-muted-foreground hover:text-foreground"}`}
+                            >
+                                <Shield className="w-3 h-3" />
+                                Standard
+                            </button>
+                            <button 
+                                onClick={() => setModelTab("high_logic")}
+                                className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${modelTab === "high_logic" ? "bg-primary text-primary-foreground shadow-[0_0_20px_rgba(var(--primary),0.4)]" : "text-muted-foreground hover:text-foreground"}`}
+                            >
+                                {(!isSponsor && novitaAccessMode === 'sponsors_only') ? <Lock className="w-3 h-3" /> : <Zap className="w-3 h-3 fill-current" />}
+                                Rare Models
+                            </button>
+                        </div>
+
+                        <div className="relative min-h-[50px]">
+                            {/* Standard Content */}
+                            {modelTab === "standard" && (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
+                                            <Shield className="w-4 h-4" />
+                                        </div>
+                                        <select 
+                                            value={aiModel} 
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setAiModel(val);
+                                                setCurrentProvider('gemini');
+                                            }} 
+                                            className="w-full bg-background border-2 border-foreground/10 rounded-xl pl-10 pr-10 py-3 text-sm font-bold focus:border-primary outline-none transition-all appearance-none cursor-pointer hover:border-foreground/20"
+                                            disabled={isGenerating}
+                                        >
+                                            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast & Balanced)</option>
+                                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Research)</option>
+                                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Instant Speed)</option>
+                                        </select>
+                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground font-medium px-1">
+                                        Best for daily study and standard document parsing.
+                                    </p>
+                                </div>
                             )}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
+
+                            {/* Rare Content */}
+                            {modelTab === "high_logic" && (
+                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="space-y-3">
+                                        {(!isSponsor && novitaAccessMode === 'sponsors_only') && (
+                                            <div className="px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 mb-3 flex items-center gap-2">
+                                                <Zap className="w-3 h-3 text-primary fill-current" />
+                                                <p className="text-[9px] text-primary font-black uppercase tracking-tighter">Sponsor Only Models</p>
+                                            </div>
+                                        )}
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-primary">
+                                                <Zap className="w-4 h-4 fill-current" />
+                                            </div>
+                                            <select 
+                                                value={(!isSponsor && novitaAccessMode === 'sponsors_only') ? "" : aiModel} 
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setAiModel(val);
+                                                    setCurrentProvider('novita');
+                                                }} 
+                                                className={`w-full bg-background border-2 border-primary/20 rounded-xl pl-10 pr-10 py-3 text-sm font-bold focus:border-primary outline-none transition-all appearance-none shadow-[0_4px_15px_rgba(var(--primary),0.1)] ${(!isSponsor && novitaAccessMode === 'sponsors_only') ? "cursor-not-allowed opacity-50 select-none" : "cursor-pointer"}`}
+                                                disabled={isGenerating || (!isSponsor && novitaAccessMode === 'sponsors_only')}
+                                            >
+                                                {(!isSponsor && novitaAccessMode === 'sponsors_only') ? (
+                                                    <option value="">Locked by Sponsor Requirement</option>
+                                                ) : (
+                                                    <>
+                                                        <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B (High Logic)</option>
+                                                        <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 (Complex Specialist)</option>
+                                                        <option value="mistralai/mistral-small-2409">Mistral Small (Efficient Pro)</option>
+                                                    </>
+                                                )}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-primary/50" />
+                                        </div>
+                                        {(!isSponsor && novitaAccessMode === 'sponsors_only') ? (
+                                            <div className="p-3 rounded-lg border-2 border-dashed border-primary/20 bg-primary/5 text-center mt-2">
+                                                <p className="text-[10px] text-muted-foreground mb-2 italic">
+                                                    These high-reasoning models are available for our project sponsors.
+                                                </p>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="h-6 text-[9px] font-black uppercase text-primary hover:bg-primary/10"
+                                                    onClick={() => {
+                                                        const sponsorBtn = document.querySelector('[data-sponsor-trigger]') as HTMLElement;
+                                                        if (sponsorBtn) sponsorBtn.click();
+                                                        else window.open('https://buymeacoffee.com/htclodkzgo', '_blank');
+                                                    }}
+                                                >
+                                                    Become a Sponsor
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 px-1">
+                                                <Activity className="w-3 h-3 text-primary" />
+                                                <p className="text-[10px] text-primary font-black uppercase tracking-widest">Sponsor Tier Enabled</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -815,12 +877,11 @@ const Studio = () => {
                         <label className="block text-sm font-medium mb-1">Card Style</label>
                         <div className="relative">
                         <select value={cardStyle} onChange={(e) => setCardStyle(e.target.value)} className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-3 py-2 text-sm cursor-pointer">
-                            <option value="qa">Question & Answer</option>
-                            <option value="cloze">Cloze Deletion</option>
-                            <option value="definition">Definition</option>
-                            <option value="true_false">True / False</option>
-                            <option value="multiple_choice">Multiple Choice</option>
-                            <option value="scenario">Scenario Based</option>
+                            <option value="qa">Basic Q&A (Standard)</option>
+                            <option value="cloze">Fill Gaps (Cloze Deletion)</option>
+                            <option value="definition">Key Concepts / Definitions</option>
+                            <option value="true_false">True / False Facts</option>
+                            <option value="multiple_choice">Exam Prep (MCQs)</option>
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
                         </div>
@@ -830,11 +891,10 @@ const Studio = () => {
                         <label className="block text-sm font-medium mb-1">Voice & Tone</label>
                         <div className="relative">
                         <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full appearance-none bg-background border-2 border-foreground/30 rounded-lg px-3 py-2 text-sm cursor-pointer">
-                            <option value="balanced">Standard</option>
-                            <option value="simple">Simple</option>
-                            <option value="detailed">Detailed</option>
-                            <option value="creative">Creative</option>
-                            <option value="humorous">Humorous</option>
+                            <option value="balanced">Balanced (Recommended)</option>
+                            <option value="simple">Simplified (Beginner)</option>
+                            <option value="detailed">Academic Depth (Pro)</option>
+                            <option value="creative">Creative / Conceptual</option>
                         </select>
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
                         </div>
@@ -852,27 +912,26 @@ const Studio = () => {
                     </div>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-border">
+                     <div className="mt-6 pt-4 border-t border-border">
                     {dailyCount !== null && (
                         <div 
-                            onClick={() => setShowApiKeyDialog(true)}
-                            className="text-center text-sm font-medium mb-2 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => isSponsor && setShowApiKeyDialog(true)}
+                            className={`text-center text-sm font-medium mb-2 transition-opacity ${isSponsor ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                         >
-                             {(userApiKey || issponsor) ? (
-                                 <div className="space-y-1">
+                             {(userApiKey || isSponsor) ? (
+                                  <div className="space-y-1">
                                     <span className="text-primary flex items-center justify-center gap-2">
                                         <ShieldCheck className="w-4 h-4" />
-                                        {userApiKey ? "Using Private API Key (Unlimited)" : `Sponsor Mode: ${Math.max(0, 5 - dailyCount)} / 5 daily quota left`}
+                                        {userApiKey ? "Using Private API Key (Unlimited)" : `Daily Quota: ${Math.max(0, 5 - dailyCount)} / 5 decks left`}
                                     </span>
                                 </div>
                             ) : (
-                               <span className={`${(dailyCount >= (issponsor ? 5 : 2) && !userApiKey) ? "text-red-500 font-black" : "text-primary"}`}>
-                                    {(dailyCount >= (issponsor ? 5 : 2) && !userApiKey) 
+                               <span className={`${(dailyCount >= 2 && !userApiKey) ? "text-red-500 font-black" : "text-primary"}`}>
+                                    {(dailyCount >= 2 && !userApiKey) 
                                         ? "⚠️ Daily Limit Reached" 
-                                        : `Daily Limit: ${Math.max(0, (issponsor ? 5 : 2) - dailyCount)} / ${issponsor ? 5 : 2} decks left`}
+                                        : `Daily Limit: ${Math.max(0, 2 - dailyCount)} / 2 decks left`}
                                     <p className="text-[10px] text-muted-foreground mt-0.5 font-normal">
-                                        {!issponsor && "Limited infra: Support us for 5/day or use your own key."}
-                                        {issponsor && "Click to use private API key for unlimited decks"}
+                                        Support the project to unlock **5 decks/day**!
                                     </p>
                                 </span>
                             )}
@@ -881,39 +940,32 @@ const Studio = () => {
                     
                     <Button 
                         onClick={handleGenerate} 
-                        disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= (issponsor ? 10 : 2) && !userApiKey)} 
-                        className={`w-full py-6 rounded-xl font-bold transition-all shadow-[4px_4px_0_0_hsl(var(--foreground))] border-2 border-foreground hover:translate-y-[2px] hover:shadow-none disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none
-                            ${(dailyCount !== null && dailyCount >= (issponsor ? 10 : 2) && !userApiKey) ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90"}
+                        disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= (isSponsor ? 5 : 2) && !userApiKey) || (!isSponsor && currentProvider === 'novita')} 
+                        className={`w-full py-6 rounded-xl font-bold transition-all shadow-[4px_4px_0_0_#000] border-2 border-foreground hover:translate-y-[2px] hover:shadow-none disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none
+                            ${((dailyCount !== null && dailyCount >= (isSponsor ? 5 : 2) && !userApiKey) || (!isSponsor && currentProvider === 'novita')) ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90"}
                         `}
                     >
                         {isGenerating ? (
-                            <><RefreshCw className="mr-2 animate-spin h-5 w-5" /> Generating...</>
-                        ) : (dailyCount !== null && dailyCount >= (issponsor ? 10 : 2) && !userApiKey) ? (
-                            "Limit Reached - Use Own Key"
-                        ) : issponsor && currentProvider === 'novita' ? (
-                            <><Zap className="mr-2 h-5 w-5 fill-yellow-400 text-yellow-500" /> Premium Core Generation</>
+                            <><RefreshCw className="mr-2 animate-spin h-5 w-5" /> Processing...</>
+                        ) : (dailyCount !== null && dailyCount >= (isSponsor ? 5 : 2) && !userApiKey) ? (
+                            "Daily Limit Reached"
+                        ) : (!isSponsor && currentProvider === 'novita') ? (
+                            <><Heart className="mr-2 h-5 w-5 fill-current" /> Unlock with Sponsor</>
+                        ) : isSponsor && currentProvider === 'novita' ? (
+                            <><Zap className="mr-2 h-5 w-5 fill-yellow-400 text-yellow-500" /> Advanced Reasoning Core</>
                         ) : (
                             "Generate Flashcards"
                         )}
                     </Button>
                     
-                    {(dailyCount !== null && dailyCount >= (issponsor ? 10 : 2) && !userApiKey) && (
+                    {(dailyCount !== null && dailyCount >= (isSponsor ? 5 : 2) && !userApiKey) && (
                         <p className="text-[10px] text-center mt-3 text-muted-foreground italic">
-                            {issponsor 
-                                ? "Sponsor limit (10/day) reached. Add your own key for absolute unlimited access!" 
-                                : "Free limit (2/day) reached. Sponsor or use own API key to continue!"}
+                            {isSponsor 
+                                ? "Daily sponsor limit reached. Upgrade to absolute unlimited by contacting us!" 
+                                : "Daily limit reached. Sponsor the project to continue!"}
                         </p>
                     )}
 
-                    <div className="mt-4 flex items-center justify-between px-1">
-                        <div className="flex items-center gap-1.5 opacity-60">
-                            <ImageIcon className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-bold uppercase tracking-tighter">AI Images</span>
-                        </div>
-                        <div className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
-                            Sponsors Only (Coming Soon 🚧)
-                        </div>
-                    </div>
                     </div>
                 </div>
                 </div>

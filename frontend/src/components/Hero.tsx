@@ -1,11 +1,11 @@
-import { ArrowRight, FileText, Brain, Download, GraduationCap, Microscope, BookOpen, Briefcase, Zap, Sparkles } from "lucide-react";
+import { ArrowRight, FileText, Brain, Download, GraduationCap, Microscope, BookOpen, Briefcase, Zap, Sparkles, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { signInWithGoogle } from "@/lib/supabase";
 
 const Hero = () => {
-  const { session } = useAuth();
+  const { session, isSponsor } = useAuth();
   const navigate = useNavigate();
 
   const handleGetStarted = async () => {
@@ -28,6 +28,12 @@ const Hero = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left: Text Content */}
             <div className="relative z-0">
+              {isSponsor && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-widest mb-6 animate-pulse">
+                  <Heart className="w-3 h-3 fill-current" />
+                  Verified Sponsor Contribution Live
+                </div>
+              )}
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-[1.1] text-foreground">
                 Turn Anything into
                 <br />

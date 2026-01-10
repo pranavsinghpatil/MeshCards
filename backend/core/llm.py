@@ -216,31 +216,55 @@ class NovitaClient(LLMClient):
     Supports: Llama, Mistral, Qwen, and other open-source models.
     """
     def __init__(self, api_key: str, model_name: str = "meta-llama/llama-3.1-70b-instruct"):
-        from novita_client import NovitaClient as NovitaSDK
-        self.client = NovitaSDK(api_key)
+        from openai import OpenAI
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.novita.ai/v3/openai"
+        )
         self.model_name = model_name
     
     def generate_json(self, prompt: Any) -> Dict[str, Any]:
-        # Convert multimodal prompt to text-only (Novita doesn't support vision yet)
-        text_prompt = prompt if isinstance(prompt, str) else " ".join(
-            [p if isinstance(p, str) else str(p) for p in prompt]
-        )
+        from .images import encode_image_to_base64
+        
+        messages = [{"role": "system", "content": "You are a helpful assistant that always responds in valid JSON matching the requested schema."}]
+        user_content = []
+        
+        if isinstance(prompt, str):
+            user_content.append({"type": "text", "text": prompt})
+        elif isinstance(prompt, list):
+            for part in prompt:
+                if isinstance(part, str):
+                    user_content.append({"type": "text", "text": part})
+                elif isinstance(part, dict) and part.get("type") == "image":
+                    base64_image = encode_image_to_base64(part["path"])
+                    if base64_image:
+                        user_content.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        })
+                else:
+                    user_content.append({"type": "text", "text": str(part)})
+        
+        messages.append({"role": "user", "content": user_content})
         
         try:
-            response = self.client.chat_completion(
+            response = self.client.chat.completions.create(
                 model=self.model_name,
-                messages=[
-                    {"role": "system", "content": "You are a helpful AI assistant. Always respond with valid JSON."},
-                    {"role": "user", "content": text_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=4096
+                messages=messages,
+                response_format={ "type": "json_object" }
             )
             
             content = response.choices[0].message.content
             return safe_json_loads(content)
             
         except Exception as e:
+            # Fallback: if vision fails (maybe model doesn't support it), try text-only
+            if "image" in str(e).lower() or "multimodal" in str(e).lower():
+                print(f"DEBUG: Novita vision failed, falling back to text-only. Error: {e}")
+                text_only_prompt = " ".join([p["text"] for p in user_content if p["type"] == "text"])
+                return self.generate_json(text_only_prompt)
             raise ValueError(f"Novita API error: {str(e)}")
 
 def get_llm_client(provider: str, api_key: str = None, model_name: str = None) -> LLMClient:

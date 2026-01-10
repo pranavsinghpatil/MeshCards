@@ -77,7 +77,36 @@ async def startup_event():
     # Start the job queue cleanup task (removes old completed/failed jobs after 24h)
     from backend.core.job_queue import cleanup_old_jobs_task
     asyncio.create_task(cleanup_old_jobs_task())
-    logger.info("Background cleanup task started")
+    
+    # Start the global jobs dict and file cleanup task
+    asyncio.create_task(cleanup_jobs_store_task())
+    
+    logger.info("Background cleanup tasks started")
+
+async def cleanup_jobs_store_task():
+    """Periodically cleans up the in-memory jobs dict and temp files"""
+    while True:
+        await asyncio.sleep(3600)  # Every hour
+        
+        now = time.time()
+        max_age = 24 * 3600  # 24 hours
+        
+        to_delete = []
+        for job_id, job in jobs.items():
+            created_at = job.get("created_at", 0)
+            if now - created_at > max_age:
+                to_delete.append(job_id)
+        
+        for job_id in to_delete:
+            job = jobs[job_id]
+            # Cleanup physical file
+            if "file_path" in job:
+                cleanup_file(job["file_path"])
+            # Remove from dict
+            del jobs[job_id]
+            
+        if to_delete:
+            logger.info(f"Cleaned up {len(to_delete)} expired jobs and files")
 
 def cleanup_file(path: str):
     try:
@@ -186,7 +215,7 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
         config = DeckConfig(**config_data)
         
         # If we have images, create a multimodal prompt for vision models
-        if image_files and provider == "gemini":
+        if image_files and provider in ["gemini", "novita"]:
             # Build prompt with images
             prompt_parts = []
             
@@ -419,36 +448,36 @@ async def submit_job(
         )
     
     # 2. Check Daily Quota (2 decks per day, resets at 12 AM IST)
-    # BYPASS quota check if user is providing their own API key
-    if not api_key:
-        try:
-            check_quota(user)
-        except HTTPException as e:
-            # Re-raise quota exceeded errors with clear message
-            raise e
-        except Exception as e:
-            logger.error(f"Quota check error for user {user.id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail="Unable to verify quota. Please try again later."
-            )
-    else:
-        logger.info(f"User {user.id} is using their own API key, bypassing quota check.")
+    # BYPASS quota check ONLY if user is a sponsor AND providing their own API key
+    is_sponsor = check_sponsor(user.id, email=user.email)
     
-    # 3. Check Novita access based on access mode setting
-    if provider == "novita" and not api_key:
+    if api_key:
+        if not is_sponsor:
+            logger.warning(f"Non-sponsor user {user.id} tried to bypass quota with an API key. Enforcing limit.")
+            check_quota(user)
+        else:
+            logger.info(f"Sponsor {user.id} is using their own API key, bypassing quota check.")
+    else:
+        check_quota(user)
+    
+    # 3. Check Novita (Rare Models) access
+    if provider == "novita":
         if settings.NOVITA_ACCESS_MODE == "sponsors_only":
-            # Strict mode: Only sponsors can use Novita (using our system key)
-            if not check_sponsor(user.id):
+            if not is_sponsor:
                 raise HTTPException(
                     status_code=403,
                     detail=(
-                        "🌟 Premium AI models (Llama 3.3, Mistral, Qwen) are available to our Sponsors! 💎\n\n"
-                        "Support the project at https://buymeacoffee.com/htclodkzgo to unlock restricted models "
-                        "and get a higher daily limit (5 decks/day).\n\n"
-                        "Alternatively, provide your own Novita API key in 'API Settings' to use these models directly."
+                        "💎 Rare Models (Llama 3.3, Qwen 2.5) are exclusive to project Supporters.\n\n"
+                        "These models require high-logic reasoning and cost significantly more to operate. "
+                        "Support us to unlock these and get a 5-deck daily limit!"
                     )
                 )
+        # Even with an API key, if mode is sponsors_only, we might want to respect it for branding
+        # But if they have a key, they technically aren't costing US money. 
+        # However, the user said "normal user should not able to use the premium man".
+        # So we stick to the sponsorship check regardless of API key for Novita if strictly required.
+        if settings.NOVITA_ACCESS_MODE == "sponsors_only" and not is_sponsor:
+             raise HTTPException(status_code=403, detail="Rare Models are restricted to sponsors only.")
         elif settings.NOVITA_ACCESS_MODE == "all":
             # Open mode: Everyone can use Novita (no check needed)
             pass
@@ -660,8 +689,27 @@ async def admin_list_users(x_admin_key: Optional[str] = Header(None)):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     
     sb = get_supabase()
-    res = sb.table('profiles').select('*').order('created_at', desc=True).limit(50).execute()
-    return res.data
+    users_res = sb.table('profiles').select('*').order('created_at', desc=True).limit(50).execute()
+    users_data = users_res.data if users_res.data else []
+    
+    # Enrich with sponsor source info
+    for user in users_data:
+        if user.get('is_sponsor'):
+            # Check for specific record in sponsors table
+            sponsor_res = sb.table('sponsors').select('tier, email').eq('user_id', user['id']).maybe_single().execute()
+            if sponsor_res.data:
+                user['sponsor_source'] = sponsor_res.data.get('tier', 'Supporter')
+            else:
+                # Check by user email as well
+                email = user.get('email')
+                if email:
+                    email_res = sb.table('sponsors').select('tier').eq('email', email).maybe_single().execute()
+                    if email_res.data:
+                        user['sponsor_source'] = email_res.data.get('tier', 'Supporter')
+        else:
+            user['sponsor_source'] = None
+            
+    return users_data
 
 @app.post("/api/admin/users/{user_id}/toggle-sponsor")
 async def admin_toggle_sponsor(user_id: str, tier: Optional[str] = Form(None), x_admin_key: Optional[str] = Header(None)):
@@ -670,19 +718,16 @@ async def admin_toggle_sponsor(user_id: str, tier: Optional[str] = Form(None), x
     
     sb = get_supabase()
     # Get current state
-    profile = sb.table('profiles').select('is_sponsor, email, full_name').eq('id', user_id).maybeSingle().execute()
+    profile = sb.table('profiles').select('is_sponsor, email, full_name').eq('id', user_id).maybe_single().execute()
     if not profile.data:
         raise HTTPException(status_code=404, detail="User not found")
     
     current_is_sponsor = profile.data.get('is_sponsor', False)
     new_state = not current_is_sponsor
-    
-    # Use provided tier or fallback to default
-    selected_tier = tier or "Premium"
+    user_email = profile.data.get('email')
     
     update_data = {
-        "is_sponsor": new_state,
-        "sponsor_tier": selected_tier if new_state else None
+        "is_sponsor": new_state
     }
     
     sb.table('profiles').update(update_data).eq('id', user_id).execute()
@@ -691,16 +736,47 @@ async def admin_toggle_sponsor(user_id: str, tier: Optional[str] = Form(None), x
     if new_state:
         sb.table('sponsors').upsert({
             "user_id": user_id,
-            "email": profile.data.get('email'),
+            "email": user_email,
             "name": profile.data.get('full_name'),
             "is_active": True,
-            "tier": selected_tier,
             "updated_at": datetime.now().isoformat()
         }, on_conflict="user_id").execute()
     else:
+        # Deactivate by ALL identifiers for maximum security
+        # 1. By user_id
         sb.table('sponsors').update({"is_active": False}).eq('user_id', user_id).execute()
+        # 2. By email (if known)
+        if user_email:
+            sb.table('sponsors').update({"is_active": False}).eq('email', user_email).execute()
+            
+    return {"status": "success", "is_sponsor": new_state}
+
+@app.post("/api/admin/users/promote-by-email")
+async def admin_promote_by_email(email: str = Form(...), x_admin_key: Optional[str] = Header(None)):
+    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
     
-    return {"status": "success", "is_sponsor": new_state, "tier": selected_tier if new_state else None}
+    sb = get_supabase()
+    
+    # 1. Try to find user in profiles
+    profile_res = sb.table('profiles').select('id, full_name').eq('email', email).maybe_single().execute()
+    user_id = profile_res.data.get('id') if profile_res.data else None
+    
+    # 2. Update profile if found
+    if user_id:
+        sb.table('profiles').update({"is_sponsor": True}).eq('id', user_id).execute()
+        logger.info(f"Admin promoted user {user_id} ({email}) to sponsor via profile")
+        
+    # 3. Always ensure record in sponsors table
+    sb.table('sponsors').upsert({
+        "email": email,
+        "user_id": user_id,
+        "name": profile_res.data.get('full_name') if profile_res.data else "Manual Promo",
+        "is_active": True,
+        "updated_at": datetime.now().isoformat()
+    }, on_conflict="email").execute()
+    
+    return {"status": "success", "message": f"User {email} is now a sponsor.", "linked": bool(user_id)}
 
 @app.post("/api/admin/users/{user_id}/reset-quota")
 async def admin_reset_quota(user_id: str, x_admin_key: Optional[str] = Header(None)):

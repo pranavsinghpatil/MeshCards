@@ -4,85 +4,67 @@ from backend.core.logging import logger
 
 class SponsorChecker:
     """
-    Check if a user is a sponsor via Supabase 'sponsors' table.
-    
-    Table schema expected:
-        - id: uuid (primary key)
-        - user_id: uuid (foreign key to profiles)
-        - email: text
-        - is_active: boolean
-        - tier: text (optional: supporter, sponsor, etc.)
-        - created_at: timestamp
+    Check if a user is a sponsor via Supabase 'sponsors' table or 'profiles' table.
     """
     
     @staticmethod
-    def is_sponsor(user_id: str) -> bool:
+    def is_sponsor(user_id: str, email: Optional[str] = None) -> bool:
         """
         Check if the user is an active sponsor.
         Checks both 'sponsors' table and 'is_sponsor' flag in 'profiles'.
+        Can optionally check by email if user_id doesn't match.
         """
         try:
             sb = get_supabase()
             if not sb:
                 return False
             
-            # 1. Check profiles table first (common for manual edits)
-            profile_res = sb.table('profiles').select('is_sponsor').eq('id', user_id).maybeSingle().execute()
-            if profile_res.data and profile_res.data.get('is_sponsor'):
+            # 1. Check profiles table first (by user_id)
+            profile_res = sb.table('profiles').select('is_sponsor').eq('id', user_id).execute()
+            if profile_res.data and any(p.get('is_sponsor') for p in profile_res.data):
                 logger.info(f"User {user_id} verified as sponsor via profiles table")
                 return True
 
-            # 2. Check dedicated sponsors table
+            # 2. Check dedicated sponsors table by user_id
             sponsor_res = (sb.table('sponsors')
                 .select('is_active')
                 .eq('user_id', user_id)
-                .maybeSingle()
+                .eq('is_active', True)
                 .execute())
             
-            if sponsor_res.data and sponsor_res.data.get('is_active'):
-                logger.info(f"User {user_id} verified as sponsor via sponsors table")
+            if sponsor_res.data:
+                logger.info(f"User {user_id} verified as sponsor via sponsors table (ID)")
                 return True
+            
+            # 3. Fallback: Check by email if provided
+            if email:
+                email_res = (sb.table('sponsors')
+                    .select('is_active')
+                    .eq('email', email)
+                    .eq('is_active', True)
+                    .execute())
+                
+                if email_res.data:
+                    logger.info(f"User {user_id} verified as sponsor via email {email}")
+                    return True
             
             return False
             
         except Exception as e:
-            logger.error(f"Sponsor check failed for {user_id}: {e}")
+            logger.error(f"Sponsor check failed for {user_id}/{email}: {e}")
             return False
     
     @staticmethod
-    def get_sponsor_tier(user_id: str) -> Optional[str]:
+    def get_sponsor_tier(user_id: str, email: Optional[str] = None) -> Optional[str]:
         """
-        Get the sponsor tier for a user.
-        Checks both 'sponsors' table and 'sponsor_tier' in 'profiles'.
+        Tier logic is deprecated. Returns 'Verified Sponsor' if active.
         """
-        try:
-            sb = get_supabase()
-            if not sb:
-                return None
-            
-            # 1. Check profiles first
-            profile_res = sb.table('profiles').select('is_sponsor, sponsor_tier').eq('id', user_id).maybeSingle().execute()
-            if profile_res.data and profile_res.data.get('is_sponsor'):
-                return profile_res.data.get('sponsor_tier', 'Premium')
+        if SponsorChecker.is_sponsor(user_id, email):
+            return "Verified Sponsor"
+        return None
 
-            # 2. Check sponsors table
-            sponsor_res = (sb.table('sponsors')
-                .select('tier, is_active')
-                .eq('user_id', user_id)
-                .maybeSingle()
-                .execute())
-            
-            if sponsor_res.data and sponsor_res.data.get('is_active'):
-                return sponsor_res.data.get('tier', 'supporter')
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"Sponsor tier check failed for {user_id}: {e}")
-            return None
-
-def check_sponsor(user_id: str) -> bool:
+def check_sponsor(user_id: str, email: Optional[str] = None) -> bool:
     """
     Convenience function to check sponsor status.
     """
-    return SponsorChecker.is_sponsor(user_id)
+    return SponsorChecker.is_sponsor(user_id, email)

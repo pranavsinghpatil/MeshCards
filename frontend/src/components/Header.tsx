@@ -5,6 +5,7 @@ import { useTheme, themes } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { signInWithGoogle, signOut } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { session, user } = useAuth();
+  const { session, user, isSponsor } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -78,71 +79,157 @@ const Header = () => {
             {/* Sponsor Dialog */}
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-pink-500 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/10">
-                  <Heart className="w-4 h-4 fill-current" />
-                  Sponsor
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  data-sponsor-trigger
+                  className={`hidden md:flex gap-2 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-[0_0_15px_rgba(var(--primary),0.2)] ${isSponsor ? 'text-primary' : 'text-pink-500 hover:text-pink-600'}`}
+                >
+                  <Heart className={`w-4 h-4 ${isSponsor ? 'fill-primary' : 'fill-current'}`} />
+                  {isSponsor ? 'Supporter Perks' : 'Sponsor'}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-pink-500 fill-current" />
-                    Support MeshCards
-                  </DialogTitle>
-                  <DialogDescription>
-                    Help us keep this project free and working for everyone.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <p className="text-muted-foreground leading-relaxed">
-                    MeshCards is a labor of love, designed to help students and professionals learn faster. 
-                    Running the AI models and servers costs money. 
-                  </p>
-                  
-                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 my-2 space-y-3">
-                    <p className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" />
-                      Sponsor Perks
-                    </p>
-                    <ul className="space-y-2">
-                        <li className="text-sm flex items-start gap-2">
-                            <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                            <span><strong>10 Decks / day</strong> (5x more than free)</span>
-                        </li>
-                        <li className="text-sm flex items-start gap-2">
-                            <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                            <span><strong>Premium Models</strong> (Llama 3.3, Mistral, Qwen)</span>
-                        </li>
-                        <li className="text-sm flex items-start gap-2">
-                            <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                            <span><strong>Automated Sync</strong> (Instant unlock on support)</span>
-                        </li>
-                    </ul>
-                  </div>
+              <DialogContent className="sm:max-w-[425px] overflow-hidden">
+                {isSponsor ? (
+                  <div className="animate-in fade-in zoom-in-95 duration-300">
+                    <DialogHeader className="mb-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="bg-primary p-2 rounded-xl shadow-[0_0_20px_rgba(var(--primary),0.3)]">
+                            <Heart className="w-6 h-6 text-white fill-current" />
+                        </div>
+                        <div>
+                             <DialogTitle className="text-2xl font-black italic tracking-tighter uppercase leading-none">
+                                Supporter Vault
+                             </DialogTitle>
+                             <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1">Project Backer & Visionary</p>
+                        </div>
+                      </div>
+                      <DialogDescription className="text-foreground font-bold leading-tight">
+                        You're the backbone of this project, {user?.user_metadata?.full_name?.split(' ')[0] || 'friend'}. 
+                      </DialogDescription>
+                    </DialogHeader>
 
-                  <p className="font-medium text-sm">
-                    If you find this tool useful, please consider buying me a coffee! ☕
-                  </p>
-                </div>
-                <div className="flex justify-between items-center">
-                    <iframe 
-                        src="https://github.com/sponsors/pranavsinghpatil/button" 
-                        title="Sponsor pranavsinghpatil" 
-                        height="32" 
-                        width="114" 
-                        style={{ border: 0, borderRadius: "6px" }}
-                    ></iframe>
-                    <a 
-                      href="https://buymeacoffee.com/htclodkzgo" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="w-full sm:w-auto"
-                    >
-                      <Button className="w-full bg-[#FFDD00] text-black hover:bg-[#FFDD00]/90 font-bold">
-                        Buy Me a Coffee
-                      </Button>
-                    </a>
-                </div>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-muted/50 border-2 border-foreground/5 p-4 rounded-2xl">
+                                <p className="text-[10px] font-black uppercase text-muted-foreground mb-1">Daily Limit</p>
+                                <p className="text-xl font-black text-primary italic">5 Decks</p>
+                            </div>
+                            <div className="bg-muted/50 border-2 border-foreground/5 p-4 rounded-2xl">
+                                <p className="text-[10px] font-black uppercase text-muted-foreground mb-1">AI Engine</p>
+                                <p className="text-xl font-black text-primary italic">High Intelligence</p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-background to-pink-500/10 border-2 border-primary/20">
+                            <h4 className="text-xs font-black uppercase mb-3 flex items-center gap-2">
+                                <Sparkles className="w-3 h-3 text-primary" />
+                                Your Unlocked Perks
+                            </h4>
+                            <ul className="space-y-2.5">
+                                <li className="text-xs font-bold flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                    Access to Llama 3.3 70B (SOTA Logic)
+                                </li>
+                                <li className="text-xs font-bold flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                    Infinite Document History (Coming Soon)
+                                </li>
+                                <li className="text-xs font-bold flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                    Prioritized Processing Speed
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Button variant="outline" className="w-full font-black uppercase tracking-widest h-12 border-2 hover:bg-muted" onClick={() => window.open('https://buymeacoffee.com/htclodkzgo', '_blank')}>
+                                Manage Donation
+                            </Button>
+                            <p className="text-[9px] text-center text-muted-foreground font-medium">
+                                Changes to subscription usually sync within 2-5 minutes.
+                            </p>
+                        </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2 text-2xl font-black italic uppercase tracking-tighter text-pink-500">
+                        <Heart className="w-6 h-6 fill-current" />
+                        Support the Vision
+                      </DialogTitle>
+                      <DialogDescription className="font-bold">
+                        MeshCards is a community project. Your support keeps us alive.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                      <p className="text-muted-foreground text-xs leading-relaxed font-medium">
+                        Running high-intelligence AI models and high-speed document processing costs significant infrastructure fees. 
+                        We believe in **honest support**—if you find value here, help us keep the servers running for everyone.
+                      </p>
+                      
+                      <div className="bg-primary/5 border-2 border-primary/20 rounded-2xl p-4 space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                          <Sparkles className="w-4 h-4" />
+                          What your support unlocks:
+                        </p>
+                        <ul className="space-y-2">
+                            <li className="text-xs font-bold flex items-center gap-2">
+                                <div className="p-1 bg-green-500/10 rounded-full shrink-0">
+                                    <Check className="w-2.5 h-2.5 text-green-500" />
+                                </div>
+                                <span><strong>Expanded Daily Limit</strong> (5 decks/day)</span>
+                            </li>
+                            <li className="text-xs font-bold flex items-center gap-2">
+                                <div className="p-1 bg-green-500/10 rounded-full shrink-0">
+                                    <Check className="w-2.5 h-2.5 text-green-500" />
+                                </div>
+                                <span><strong>Advanced Intelligence</strong> (Llama 3.3, Qwen)</span>
+                            </li>
+                            <li className="text-xs font-bold flex items-center gap-2">
+                                <div className="p-1 bg-green-500/10 rounded-full shrink-0">
+                                    <Check className="w-2.5 h-2.5 text-green-500" />
+                                </div>
+                                <span><strong>Honest Contribution</strong> (Keeps Mesh free)</span>
+                            </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                        <div className="flex flex-col gap-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Standard Support Options</p>
+                            
+                            <a 
+                              href="https://buymeacoffee.com/htclodkzgo" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              <Button className="w-full bg-[#FFDD00] text-black hover:bg-[#FFDD00]/90 font-black h-12 text-sm shadow-[4px_4px_0_0_#000] border-2 border-black active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all">
+                                ☕ Buy Me a Coffee
+                              </Button>
+                            </a>
+
+                            <div className="relative pt-1">
+                                <iframe 
+                                    src="https://github.com/sponsors/pranavsinghpatil/button" 
+                                    title="Sponsor pranavsinghpatil" 
+                                    height="35" 
+                                    width="100%" 
+                                    style={{ border: 0, borderRadius: "8px" }}
+                                    className="bg-card border-2 border-foreground/10 p-0.5"
+                                ></iframe>
+                            </div>
+                        </div>
+                        
+                        <p className="text-[9px] text-center text-muted-foreground leading-tight italic">
+                            All support is voluntary and directly funds API & server costs.
+                        </p>
+                    </div>
+                  </>
+                )}
               </DialogContent>
             </Dialog>
 
@@ -201,7 +288,10 @@ const Header = () => {
                                 )}
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground leading-none mb-1">Auth Account</p>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground leading-none">Account</p>
+                                    {isSponsor && <Badge className="h-4 px-1.5 text-[8px] bg-primary text-white font-black uppercase">Sponsor</Badge>}
+                                </div>
                                 <p className="text-sm font-bold truncate text-foreground leading-tight">{user?.email}</p>
                                 <p className="text-[10px] text-primary font-black truncate uppercase mt-0.5">
                                     {user?.user_metadata?.full_name || user?.user_metadata?.name || 'Mesh Explorer'}

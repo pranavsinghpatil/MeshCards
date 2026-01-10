@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Shield, Users, CreditCard, Zap, Activity, ChevronRight, Lock, Key, RefreshCw, LogOut, BookOpen, Mail, Terminal, Calendar, Copy, Check, UserPlus, UserMinus, RotateCcw, Search } from "lucide-react";
+import { Shield, Users, CreditCard, Zap, Activity, ChevronRight, Lock, Key, RefreshCw, LogOut, BookOpen, Mail, Terminal, Calendar, Copy, Check, UserPlus, UserMinus, RotateCcw, Search, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getApiUrl } from "@/lib/api";
 import Header from "@/components/Header";
 import SimpleFooter from "@/components/SimpleFooter";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -24,6 +25,7 @@ interface UserProfile {
     daily_count: number;
     is_sponsor: boolean;
     sponsor_tier?: string;
+    sponsor_source?: string;
     created_at: string;
 }
 
@@ -36,6 +38,8 @@ interface Stats {
 }
 
 const AdminPage = () => {
+    const { user, refreshSponsorStatus } = useAuth();
+    const { toast } = useToast();
     const [stats, setStats] = useState<Stats | null>(null);
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,9 +47,46 @@ const AdminPage = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
-    const [userTiers, setUserTiers] = useState<Record<string, string>>({});
+    const [promoEmail, setPromoEmail] = useState("");
+    const [isPromoting, setIsPromoting] = useState(false);
 
-    const tiers = ["Supporter", "Silver", "Gold", "Premium", "Platinum", "Manual Override"];
+    const promoteByEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!promoEmail || !promoEmail.includes("@")) {
+            toast({ variant: "destructive", title: "Invalid Email", description: "Please enter a valid email address." });
+            return;
+        }
+
+        setIsPromoting(true);
+        try {
+            const formData = new FormData();
+            formData.append("email", promoEmail);
+
+            const response = await fetch(getApiUrl("/api/admin/users/promote-by-email"), {
+                method: 'POST',
+                headers: { "X-Admin-Key": adminKey },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                toast({ title: "Success", description: data.message });
+                setPromoEmail("");
+                if (promoEmail === user?.email) {
+                    await refreshSponsorStatus();
+                }
+                fetchUsers(adminKey);
+                fetchStats(adminKey);
+            } else {
+                const err = await response.text();
+                throw new Error(err);
+            }
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Failed", description: error.message || "Failed to promote user." });
+        } finally {
+            setIsPromoting(false);
+        }
+    };
 
     const fetchStats = async (key: string) => {
         try {
@@ -92,21 +133,31 @@ const AdminPage = () => {
 
     const toggleSponsor = async (userId: string) => {
         setIsActionLoading(userId + '-sponsor');
-        const selectedTier = userTiers[userId] || "Premium";
-        
         try {
-            const formData = new FormData();
-            formData.append("tier", selectedTier);
-
             const response = await fetch(getApiUrl(`/api/admin/users/${userId}/toggle-sponsor`), {
                 method: 'POST',
-                headers: { "X-Admin-Key": adminKey },
-                body: formData
+                headers: { "X-Admin-Key": adminKey }
             });
             if (response.ok) {
-                toast({ title: "Updated", description: `User promoted to ${selectedTier}.` });
-                fetchUsers(adminKey);
-                fetchStats(adminKey);
+                const data = await response.json();
+                const isRevoke = !data.is_sponsor;
+                
+                toast({ 
+                    title: isRevoke ? "Sponsorship Revoked" : "Sponsorship Granted", 
+                    description: isRevoke ? "Updating platform state..." : "User promoted to Sponsor." 
+                });
+
+                if (userId === user?.id) {
+                    await refreshSponsorStatus();
+                }
+
+                if (isRevoke) {
+                    // "Whole website refresh" as requested
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    fetchUsers(adminKey);
+                    fetchStats(adminKey);
+                }
             }
         } catch (error) {
             toast({ variant: "destructive", title: "Error", description: "Failed to toggle sponsor status." });
@@ -274,10 +325,38 @@ const AdminPage = () => {
                         <TabsContent value="users" className="space-y-6">
                             <div className="bg-card border-4 border-foreground rounded-3xl p-8 shadow-[8px_8px_0_0_hsl(var(--foreground))]">
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                                    <h2 className="text-2xl font-black flex items-center gap-3"><Users className="w-6 h-6 text-primary" />Operate Users</h2>
-                                    <div className="relative w-full md:w-96">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <input type="text" placeholder="Search by name, email or ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-muted border-2 border-foreground/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-primary transition-all outline-none" />
+                                    <div className="flex flex-col gap-1">
+                                        <h2 className="text-2xl font-black flex items-center gap-3"><Users className="w-6 h-6 text-primary" />Operate Users</h2>
+                                        <p className="text-xs text-muted-foreground font-medium">Manage and promote your community members.</p>
+                                    </div>
+                                    
+                                    <div className="flex flex-col md:flex-row gap-3">
+                                        {/* Promotion Form */}
+                                        <form onSubmit={promoteByEmail} className="flex gap-2">
+                                            <div className="relative">
+                                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                                                <input 
+                                                    type="email" 
+                                                    placeholder="Promote by email..." 
+                                                    value={promoEmail}
+                                                    onChange={(e) => setPromoEmail(e.target.value)}
+                                                    className="bg-muted border-2 border-primary/20 rounded-xl pl-9 pr-4 py-2 text-xs font-bold focus:border-primary transition-all outline-none w-48 md:w-64"
+                                                />
+                                            </div>
+                                            <Button 
+                                                type="submit" 
+                                                disabled={isPromoting}
+                                                size="sm"
+                                                className="bg-primary hover:bg-primary/90 text-primary-foreground font-black rounded-xl px-4"
+                                            >
+                                                {isPromoting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <><UserPlus className="w-3 h-3 mr-1" /> GRANT</>}
+                                            </Button>
+                                        </form>
+
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                            <input type="text" placeholder="Search accounts..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-muted border-2 border-foreground/10 rounded-xl pl-10 pr-4 py-2 text-xs font-medium focus:border-primary transition-all outline-none" />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -288,7 +367,7 @@ const AdminPage = () => {
                                                 <th className="py-4 px-4 text-xs font-black uppercase tracking-widest">User Details</th>
                                                 <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-center">Status</th>
                                                 <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-center">Usage</th>
-                                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-right">Target Tier</th>
+                                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-right">Role</th>
                                                 <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-right">Actions</th>
                                             </tr>
                                         </thead>
@@ -323,16 +402,18 @@ const AdminPage = () => {
                                                             <div className="text-[10px] uppercase font-black text-muted-foreground">Today</div>
                                                         </td>
                                                         <td className="py-4 px-4 text-right">
-                                                            {!u.is_sponsor && (
-                                                                <select 
-                                                                    value={userTiers[u.id] || "Premium"}
-                                                                    onChange={(e) => setUserTiers({...userTiers, [u.id]: e.target.value})}
-                                                                    className="bg-muted border border-foreground/10 rounded-lg px-2 py-1 text-[10px] font-bold outline-none focus:border-primary"
-                                                                >
-                                                                    {tiers.map(t => <option key={t} value={t}>{t}</option>)}
-                                                                </select>
+                                                            {u.is_sponsor ? (
+                                                                <div className="flex flex-col items-end">
+                                                                    <Badge className="bg-primary/20 text-primary border-primary/20 font-black">ACTIVE SPONSOR</Badge>
+                                                                    {u.sponsor_source && (
+                                                                        <span className="text-[9px] font-black uppercase text-pink-600 mt-1 flex items-center gap-1">
+                                                                            <Heart className="w-2 h-2 fill-current" /> {u.sponsor_source}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-[10px] font-bold text-muted-foreground opacity-30 italic">No Benefits</span>
                                                             )}
-                                                            {u.is_sponsor && <span className="text-[10px] font-black text-primary">{u.sponsor_tier || 'Premium'}</span>}
                                                         </td>
                                                         <td className="py-4 px-4 text-right">
                                                             <div className="flex items-center justify-end gap-2">

@@ -8,9 +8,17 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
+  isSponsor: boolean;
+  refreshSponsorStatus: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ session: null, user: null, isLoading: true });
+const AuthContext = createContext<AuthContextType>({ 
+    session: null, 
+    user: null, 
+    isLoading: true, 
+    isSponsor: false,
+    refreshSponsorStatus: async () => {}
+});
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -18,10 +26,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSponsor, setIsSponsor] = useState(false);
     const { toast } = useToast();
 
+    const checkSponsorStatus = async (currentUser: User | null) => {
+        if (!currentUser) {
+            setIsSponsor(false);
+            return;
+        }
+
+        const sb = getSupabase();
+        if (!sb) return;
+
+        try {
+            const { data } = await sb.from('profiles')
+                .select('is_sponsor')
+                .eq('id', currentUser.id)
+                .maybeSingle();
+            
+            if (data?.is_sponsor) {
+                setIsSponsor(true);
+            } else {
+                // Secondary check in sponsors table
+                const { data: sponsorData } = await sb.from('sponsors')
+                    .select('is_active')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle();
+                
+                setIsSponsor(sponsorData?.is_active ?? false);
+            }
+        } catch (e) {
+            console.error("Auth sponsor check failed", e);
+        }
+    };
+
+    const refreshSponsorStatus = async () => {
+        await checkSponsorStatus(user);
+    };
+
     useEffect(() => {
-        // Fetch Config & Init Supabase
         fetch(getApiUrl('/api/config'))
             .then(res => res.json())
             .then(config => {
@@ -31,7 +74,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     if (sb) {
                         sb.auth.getSession().then(({ data: { session } }) => {
                             setSession(session);
-                            setUser(session?.user ?? null);
+                            const u = session?.user ?? null;
+                            setUser(u);
+                            checkSponsorStatus(u);
                             setIsLoading(false);
                         });
                         
@@ -40,13 +85,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                             const isNowSignedIn = session?.user;
                             
                             setSession(session);
-                            setUser(session?.user ?? null);
+                            const u = session?.user ?? null;
+                            setUser(u);
+                            checkSponsorStatus(u);
                             setIsLoading(false);
                             
-                            // Show terms acceptance toast ONLY on first sign-in per session
                             if (wasSignedOut && isNowSignedIn && event === 'SIGNED_IN') {
                                 const hasSeenWelcome = sessionStorage.getItem('meshcards_welcome_shown');
-                                
                                 if (!hasSeenWelcome) {
                                     toast({
                                         title: "Welcome to MeshCards! 🎉",
@@ -67,8 +112,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                                         ),
                                         duration: 5000,
                                     });
-                                    
-                                    // Mark as shown for this browser session
                                     sessionStorage.setItem('meshcards_welcome_shown', 'true');
                                 }
                             }
@@ -89,7 +132,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, [toast]);
 
     return (
-        <AuthContext.Provider value={{ session, user, isLoading }}>
+        <AuthContext.Provider value={{ session, user, isLoading, isSponsor, refreshSponsorStatus }}>
             {children}
         </AuthContext.Provider>
     );

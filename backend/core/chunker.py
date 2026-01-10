@@ -14,62 +14,69 @@ def estimate_tokens(text: str) -> int:
 
 def extract_key_content(text: str, max_tokens: int = 25000) -> str:
     """
-    Extract only the most important content to reduce API costs
-    This can reduce tokens by 60-80% while maintaining quality
+    Extract key content to reduce API costs while maintaining quality.
+    Uses structural markers but falls back to context-rich snippets if markers are missing.
     """
-    # Find definitions (high value for flashcards)
+    if not text:
+        return ""
+        
+    # Find definitions
     definitions = re.findall(
-        r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is|are|means|refers to|defined as)\s+([^.!?]+[.!?])',
+        r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is|are|means|refers to|defined as|consists of)\s+([^.!?]+[.!?])',
         text,
         re.MULTILINE
     )
     
-    # Find bullet points and lists (structured information)
-    bullet_points = re.findall(r'[•\-\*]\s*(.+)', text)
-    numbered_points = re.findall(r'\d+\.\s+(.+)', text)
+    # Find list structures
+    bullet_points = re.findall(r'^[•\-\*]\s*(.+)$', text, re.MULTILINE)
+    numbered_points = re.findall(r'^\d+\.\s+(.+)$', text, re.MULTILINE)
     
-    # Find headings (topic markers)
+    # Find headings
     headings = re.findall(r'^#{1,6}\s+(.+)$', text, re.MULTILINE)
-    headings += re.findall(r'^([A-Z][A-Z\s]+)$', text, re.MULTILINE)  # ALL CAPS headings
+    headings += re.findall(r'^([A-Z][A-Z\s]{5,})$', text, re.MULTILINE)  # ALL CAPS headings (min 5 chars)
     
-    # Find bold/emphasized text (usually important)
+    # Find bold/emphasized text
     emphasized = re.findall(r'\*\*(.+?)\*\*', text)
-    emphasized += re.findall(r'__(.+?)__', text)
     
-    # Build key content (prioritize by importance)
+    # Build key content
     key_content = []
     
-    # 1. Definitions (highest priority)
-    for term, definition in definitions[:30]:
-        key_content.append(f"{term}: {definition}")
+    # 1. Definitions
+    for term, definition in definitions[:40]:
+        key_content.append(f"Definition: {term} - {definition}")
     
-    # 2. Headings with context
-    for heading in headings[:15]:
-        if len(heading.strip()) > 3:  # Skip very short headings
-            key_content.append(f"\n## {heading.strip()}\n")
+    # 2. Structural points
+    for item in (bullet_points + numbered_points)[:40]:
+        if len(item.strip()) > 8:
+            key_content.append(f"Point: {item.strip()}")
+            
+    # 3. Headings with context (try to find the paragraph following the heading)
+    for heading in headings[:20]:
+        key_content.append(f"\nSection: {heading.strip()}\n")
     
-    # 3. Emphasized content
-    for item in emphasized[:20]:
-        if len(item) > 10:  # Skip very short items
-            key_content.append(item)
+    # 4. Bold items
+    for item in emphasized[:30]:
+        if 5 < len(item) < 100:
+            key_content.append(f"Important: {item}")
+            
+    # CHECK: If we extracted very little, the document might be unstructured
+    # Fallback to taking the first 40% and last 20% of the text
+    combined_extracted = '\n'.join(key_content)
     
-    # 4. Bullet points
-    for item in bullet_points[:25]:
-        key_content.append(f"• {item}")
-    
-    # 5. Numbered points
-    for item in numbered_points[:25]:
-        key_content.append(item)
-    
-    # Combine and check token limit
-    combined = '\n'.join(key_content)
-    
-    # If still too large, truncate
-    if estimate_tokens(combined) > max_tokens:
-        # Take only the most important parts
-        combined = '\n'.join(key_content[:max_tokens // 100])
-    
-    return combined if combined else text[:max_tokens * 4]
+    if len(combined_extracted) < 1000 and len(text) > 2000:
+        # Document doesn't match our regex well, use a hybrid approach
+        intro_cutoff = int(len(text) * 0.4)
+        outro_start = int(len(text) * 0.8)
+        
+        fallback_text = text[:intro_cutoff] + "\n\n... [Skipped Middle Section] ...\n\n" + text[outro_start:]
+        return fallback_text[:max_tokens * 4]
+        
+    # If we have extracted content, make sure it doesn't exceed limit
+    if estimate_tokens(combined_extracted) > max_tokens:
+        # Smart truncate: keep definitions and structural points first
+        return combined_extracted[:max_tokens * 4]
+        
+    return combined_extracted if len(combined_extracted) > 200 else text[:max_tokens * 4]
 
 def chunk_text(text: str, max_tokens: int = 25000) -> List[str]:
     """

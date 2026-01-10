@@ -97,7 +97,7 @@ def check_quota(user: any):
             }).eq('id', user_id).execute()
         
         # Determine user limit based on sponsor status
-        is_user_sponsor = check_sponsor(user_id)
+        is_user_sponsor = check_sponsor(user_id, email=email)
         daily_limit = 5 if is_user_sponsor else 2
         
         # Check if quota exceeded (STRICT ENFORCEMENT)
