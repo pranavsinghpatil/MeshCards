@@ -195,6 +195,44 @@ const Studio = () => {
   const [modelTab, setModelTab] = useState<"standard" | "high_logic">("standard");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const STANDARD_MODELS = [
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Fast & Balanced)" },
+    { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro (Deep Research)" },
+    { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash (Instant Speed)" }
+  ];
+
+  const RARE_MODELS = [
+    { id: "meta-llama/llama-3.3-70b-instruct", name: "Llama 3.3 70B (High Logic)" },
+    { id: "qwen/qwen-2.5-7b-instruct", name: "Qwen 2.5 (Complex Specialist)" },
+    { id: "mistralai/mistral-small-2409", name: "Mistral Small (Efficient Pro)" }
+  ];
+
+  const handleModelTabChange = (newTab: "standard" | "high_logic") => {
+    if (newTab === "high_logic" && !isSponsor && novitaAccessMode === 'sponsors_only') {
+        toast({ 
+            title: "Rare Models Locked", 
+            description: "These high-reasoning models are reserved for project sponsors.", 
+            variant: "destructive" 
+        });
+        return;
+    }
+
+    setModelTab(newTab);
+    
+    // Auto-select first model in new tab if current model doesn't belong there
+    if (newTab === "standard") {
+        if (!STANDARD_MODELS.some(m => m.id === aiModel)) {
+            setAiModel(STANDARD_MODELS[0].id);
+            setCurrentProvider("gemini");
+        }
+    } else {
+        if (!RARE_MODELS.some(m => m.id === aiModel)) {
+            setAiModel(RARE_MODELS[0].id);
+            setCurrentProvider("novita");
+        }
+    }
+  };
+
   useEffect(() => {
     if (session?.user) {
         const fetchUsage = async () => {
@@ -230,7 +268,7 @@ const Studio = () => {
             setNovitaAccessMode(config.novita_access_mode);
           }
           // Auto-switch tab if sponsor and using a high reasoning model
-          if (["meta-llama/llama-3.3-70b-instruct", "qwen/qwen-2.5-7b-instruct", "mistralai/mistral-small-2409"].includes(aiModel)) {
+          if (RARE_MODELS.some(m => m.id === aiModel)) {
               setModelTab("high_logic");
           }
         }
@@ -762,14 +800,14 @@ const Studio = () => {
                         
                         <div className="flex gap-1 p-1 bg-muted/50 rounded-xl border-2 border-foreground/5 mb-4">
                             <button 
-                                onClick={() => setModelTab("standard")}
+                                onClick={() => handleModelTabChange("standard")}
                                 className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${modelTab === "standard" ? "bg-emerald-600 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]" : "text-muted-foreground hover:text-foreground"}`}
                             >
                                 <Shield className="w-3 h-3" />
                                 Standard
                             </button>
                             <button 
-                                onClick={() => setModelTab("high_logic")}
+                                onClick={() => handleModelTabChange("high_logic")}
                                 className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${modelTab === "high_logic" ? "bg-primary text-primary-foreground shadow-[0_0_20px_rgba(var(--primary),0.4)]" : "text-muted-foreground hover:text-foreground"}`}
                             >
                                 {(!isSponsor && novitaAccessMode === 'sponsors_only') ? <Lock className="w-3 h-3" /> : <Zap className="w-3 h-3 fill-current" />}
@@ -778,98 +816,78 @@ const Studio = () => {
                         </div>
 
                         <div className="relative min-h-[50px]">
-                            {/* Standard Content */}
-                            {modelTab === "standard" && (
-                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="space-y-3">
+                                    {(modelTab === "high_logic" && !isSponsor && novitaAccessMode === 'sponsors_only') && (
+                                        <div className="px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 mb-3 flex items-center gap-2">
+                                            <Zap className="w-3 h-3 text-primary fill-current" />
+                                            <p className="text-[9px] text-primary font-black uppercase tracking-tighter">Sponsor Only Models</p>
+                                        </div>
+                                    )}
                                     <div className="relative group">
-                                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
-                                            <Shield className="w-4 h-4" />
+                                        <div className={`absolute inset-y-0 left-3 flex items-center pointer-events-none transition-colors ${modelTab === 'standard' ? 'text-muted-foreground group-focus-within:text-primary' : 'text-primary'}`}>
+                                            {modelTab === 'standard' ? <Shield className="w-4 h-4" /> : <Zap className="w-4 h-4 fill-current" />}
                                         </div>
                                         <select 
                                             value={aiModel} 
                                             onChange={(e) => {
                                                 const val = e.target.value;
                                                 setAiModel(val);
-                                                setCurrentProvider('gemini');
+                                                setCurrentProvider(modelTab === 'standard' ? 'gemini' : 'novita');
                                             }} 
-                                            className="w-full bg-background border-2 border-foreground/10 rounded-xl pl-10 pr-10 py-3 text-sm font-bold focus:border-primary outline-none transition-all appearance-none cursor-pointer hover:border-foreground/20"
-                                            disabled={isGenerating}
+                                            className={`w-full bg-background border-2 rounded-xl pl-10 pr-10 py-3 text-sm font-bold focus:border-primary outline-none transition-all appearance-none cursor-pointer
+                                                ${modelTab === 'standard' ? 'border-foreground/10 hover:border-foreground/20' : 'border-primary/20 shadow-[0_4px_15px_rgba(var(--primary),0.1)]'}
+                                                ${(modelTab === 'high_logic' && !isSponsor && novitaAccessMode === 'sponsors_only') ? 'opacity-50 pointer-events-none' : ''}
+                                            `}
+                                            disabled={isGenerating || (modelTab === 'high_logic' && !isSponsor && novitaAccessMode === 'sponsors_only')}
                                         >
-                                            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast & Balanced)</option>
-                                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Research)</option>
-                                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Instant Speed)</option>
+                                            {modelTab === "standard" ? (
+                                                STANDARD_MODELS.map(m => (
+                                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                                ))
+                                            ) : (
+                                                RARE_MODELS.map(m => (
+                                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                                ))
+                                            )}
                                         </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
+                                        <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${modelTab === 'standard' ? 'text-muted-foreground' : 'text-primary/50'}`} />
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground font-medium px-1">
-                                        Best for daily study and standard document parsing.
-                                    </p>
+                                    
+                                    {modelTab === "standard" ? (
+                                        <p className="text-[10px] text-muted-foreground font-medium px-1">
+                                            Best for daily study and standard document parsing.
+                                        </p>
+                                    ) : (
+                                        <>
+                                            {(!isSponsor && novitaAccessMode === 'sponsors_only') ? (
+                                                <div className="p-3 rounded-lg border-2 border-dashed border-primary/20 bg-primary/5 text-center mt-2">
+                                                    <p className="text-[10px] text-muted-foreground mb-2 italic">
+                                                        These high-reasoning models are available for our project sponsors.
+                                                    </p>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        className="h-6 text-[9px] font-black uppercase text-primary hover:bg-primary/10"
+                                                        onClick={() => {
+                                                            const sponsorBtn = document.querySelector('[data-sponsor-trigger]') as HTMLElement;
+                                                            if (sponsorBtn) sponsorBtn.click();
+                                                            else window.open('https://buymeacoffee.com/htclodkzgo', '_blank');
+                                                        }}
+                                                    >
+                                                        Become a Sponsor
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 px-1">
+                                                    <Activity className="w-3 h-3 text-primary" />
+                                                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">Sponsor Tier Enabled</p>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
-                            )}
-
-                            {/* Rare Content */}
-                            {modelTab === "high_logic" && (
-                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="space-y-3">
-                                        {(!isSponsor && novitaAccessMode === 'sponsors_only') && (
-                                            <div className="px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 mb-3 flex items-center gap-2">
-                                                <Zap className="w-3 h-3 text-primary fill-current" />
-                                                <p className="text-[9px] text-primary font-black uppercase tracking-tighter">Sponsor Only Models</p>
-                                            </div>
-                                        )}
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-primary">
-                                                <Zap className="w-4 h-4 fill-current" />
-                                            </div>
-                                            <select 
-                                                value={(!isSponsor && novitaAccessMode === 'sponsors_only') ? "" : aiModel} 
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    setAiModel(val);
-                                                    setCurrentProvider('novita');
-                                                }} 
-                                                className={`w-full bg-background border-2 border-primary/20 rounded-xl pl-10 pr-10 py-3 text-sm font-bold focus:border-primary outline-none transition-all appearance-none shadow-[0_4px_15px_rgba(var(--primary),0.1)] ${(!isSponsor && novitaAccessMode === 'sponsors_only') ? "cursor-not-allowed opacity-50 select-none" : "cursor-pointer"}`}
-                                                disabled={isGenerating || (!isSponsor && novitaAccessMode === 'sponsors_only')}
-                                            >
-                                                {(!isSponsor && novitaAccessMode === 'sponsors_only') ? (
-                                                    <option value="">Locked by Sponsor Requirement</option>
-                                                ) : (
-                                                    <>
-                                                        <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B (High Logic)</option>
-                                                        <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 (Complex Specialist)</option>
-                                                        <option value="mistralai/mistral-small-2409">Mistral Small (Efficient Pro)</option>
-                                                    </>
-                                                )}
-                                            </select>
-                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-primary/50" />
-                                        </div>
-                                        {(!isSponsor && novitaAccessMode === 'sponsors_only') ? (
-                                            <div className="p-3 rounded-lg border-2 border-dashed border-primary/20 bg-primary/5 text-center mt-2">
-                                                <p className="text-[10px] text-muted-foreground mb-2 italic">
-                                                    These high-reasoning models are available for our project sponsors.
-                                                </p>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
-                                                    className="h-6 text-[9px] font-black uppercase text-primary hover:bg-primary/10"
-                                                    onClick={() => {
-                                                        const sponsorBtn = document.querySelector('[data-sponsor-trigger]') as HTMLElement;
-                                                        if (sponsorBtn) sponsorBtn.click();
-                                                        else window.open('https://buymeacoffee.com/htclodkzgo', '_blank');
-                                                    }}
-                                                >
-                                                    Become a Sponsor
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 px-1">
-                                                <Activity className="w-3 h-3 text-primary" />
-                                                <p className="text-[10px] text-primary font-black uppercase tracking-widest">Sponsor Tier Enabled</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                            </div>
                         </div>
                     </div>
 
