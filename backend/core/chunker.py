@@ -78,57 +78,58 @@ def extract_key_content(text: str, max_tokens: int = 25000) -> str:
         
     return combined_extracted if len(combined_extracted) > 200 else text[:max_tokens * 4]
 
-def chunk_text(text: str, max_tokens: int = 25000) -> List[str]:
+def chunk_text(text: str, max_tokens: int = 25000, overlap_percent: float = 0.15) -> List[str]:
     """
-    Split text into chunks that fit within token limits
-    Smart splitting by paragraphs to maintain context
+    Split text into chunks with a sliding window overlap.
+    Default overlap: 15%
     """
     max_chars = max_tokens * 4
+    overlap_chars = int(max_chars * overlap_percent)
     
-    # If text is small enough, return as-is
     if len(text) <= max_chars:
         return [text]
     
     chunks = []
-    current_chunk = ""
+    start = 0
     
-    # Split by double newlines (paragraphs)
-    paragraphs = text.split('\n\n')
-    
-    for para in paragraphs:
-        para = para.strip()
-        if not para:
-            continue
+    while start < len(text):
+        # Calculate end point
+        end = min(start + max_chars, len(text))
         
-        # If this paragraph alone is too large, split it further
-        if len(para) > max_chars:
-            # Split by sentences
-            sentences = re.split(r'([.!?]+\s+)', para)
-            for sentence in sentences:
-                if len(current_chunk) + len(sentence) > max_chars:
-                    if current_chunk:
-                        chunks.append(current_chunk.strip())
-                    current_chunk = sentence
-                else:
-                    current_chunk += sentence
-        else:
-            # Normal paragraph handling
-            if len(current_chunk) + len(para) + 2 > max_chars:
-                if current_chunk:
-                    chunks.append(current_chunk.strip())
-                current_chunk = para + '\n\n'
-            else:
-                current_chunk += para + '\n\n'
-    
-    # Add final chunk
-    if current_chunk.strip():
-        chunks.append(current_chunk.strip())
-    
+        # If we're not at the very end, try to find a natural breaking point
+        if end < len(text):
+            # Try to break at a double newline first
+            last_break = text.rfind('\n\n', start + max_chars // 2, end)
+            if last_break == -1:
+                # Then single newline
+                last_break = text.rfind('\n', start + max_chars // 2, end)
+            if last_break == -1:
+                # Then a sentence break
+                last_break = text.rfind('. ', start + max_chars // 2, end)
+            
+            if last_break != -1:
+                end = last_break
+        
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        
+        # Move start point back by overlap amount for the next chunk
+        start = end - overlap_chars
+        
+        # Safety check: if start hasn't moved forward, force move it
+        if start <= chunks[-1].find(text[start:start+10]):
+              start = end # Fallback
+        
+        # If the remaining text is smaller than overlap, we're done
+        if len(text) - start < overlap_chars:
+            break
+            
     return chunks if chunks else [text]
 
 def optimize_for_cost(text: str, max_tokens: int = 25000) -> Tuple[str, bool]:
     """
-    Optimize text for minimal API cost
+    Optimize text for minimal API cost.
     Returns: (optimized_text, was_optimized)
     """
     estimated = estimate_tokens(text)
@@ -143,6 +144,6 @@ def optimize_for_cost(text: str, max_tokens: int = 25000) -> Tuple[str, bool]:
     if estimate_tokens(extracted) < max_tokens:
         return extracted, True
     
-    # If extraction still too large, return first chunk
+    # If extraction still too large, return first chunk with overlap logic context
     chunks = chunk_text(extracted, max_tokens)
     return chunks[0], True
