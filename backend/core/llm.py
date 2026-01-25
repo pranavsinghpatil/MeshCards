@@ -85,17 +85,12 @@ class GeminiClient(LLMClient):
         # Map user-facing model names to actual API models
         model_map = {
             # Branding Aliases (Sponsor & Fast Tiers)
-            "gemini-3-pro": "gemini-1.5-pro", 
-            "gemini-3-flash": "gemini-2.0-flash", 
-            "gemini-2.5-pro": "gemini-1.5-pro",
-            "gemini-2.5-flash": "gemini-2.0-flash",
-            "gemini-2.5-flash-lite": "gemini-1.5-flash-8b",
+            "gemini-3-pro": "gemini-2.5-pro", 
+            "gemini-3-flash": "gemini-2.5-flash", 
+            "gemini-2.5-pro": "gemini-2.5-flash",
+            "gemini-2.5-flash": "gemini-2.5-flash-lite",
+            "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
             
-            # Real Models (Direct Access)
-            "gemini-2.0-flash": "gemini-2.0-flash",
-            "gemini-1.5-pro": "gemini-1.5-pro",
-            "gemini-1.5-flash": "gemini-1.5-flash",
-            "gemini-1.5-flash-8b": "gemini-1.5-flash-8b",
         }
         
         # Use mapped model if exists, otherwise try the raw string (fallback)
