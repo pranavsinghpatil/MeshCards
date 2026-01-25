@@ -83,7 +83,7 @@ const Header = () => {
                   variant="ghost" 
                   size="sm" 
                   data-sponsor-trigger
-                  className={`hidden md:flex gap-2 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-[0_0_15px_rgba(var(--primary),0.2)] ${isSponsor ? 'text-primary' : 'text-pink-500 hover:text-pink-600'}`}
+                  className={`hidden md:flex gap-2 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-[0_0_15px_rgba(var(--primary),0.2)] hover:bg-pink-500/5 ${isSponsor ? 'text-primary' : 'text-pink-500 hover:text-pink-600'}`}
                 >
                   <Heart className={`w-4 h-4 ${isSponsor ? 'fill-primary' : 'fill-current'}`} />
                   {isSponsor ? 'Supporter Perks' : 'Sponsor'}

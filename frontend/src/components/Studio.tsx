@@ -136,13 +136,13 @@ const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId:
 
             {/* Footer Actions */}
             <div className="bg-muted/50 border-t-2 border-border p-3 grid grid-cols-2 divide-x divide-border">
-                 <button 
-                    className="flex items-center justify-center gap-2 text-xs font-semibold text-pink-600 hover:text-pink-500 py-1 transition-colors"
+                  <button 
+                    className="flex items-center justify-center gap-2 text-xs font-semibold text-pink-600 hover:text-pink-500 hover:bg-pink-500/5 py-2 transition-all rounded-xl"
                     onClick={() => window.open('https://buymeacoffee.com/htclodkzgo', '_blank')}
-                 >
+                  >
                     <Heart className="w-3 h-3 fill-current" />
                     Sponsor Project
-                 </button>
+                  </button>
                  <button 
                     className="group flex items-center justify-center gap-2 text-xs font-bold text-primary hover:text-primary/80 py-1 transition-colors"
                     onClick={() => window.open('/feedback', '_blank')}
@@ -997,15 +997,23 @@ const Studio = () => {
                                                     </div>
                                                 )}
                                             </div>
-                                            <p className="mt-2 text-[9px] text-muted-foreground leading-relaxed">
-                                                {currentProvider === 'gemini' ? (
-                                                    <>Get yours for <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-primary hover:underline underline-offset-2 font-bold">free at Google AI Studio</a>.</>
-                                                ) : currentProvider === 'groq' ? (
-                                                    <>Get yours from <a href="https://console.groq.com/keys" target="_blank" className="text-primary hover:underline underline-offset-2 font-bold">Groq Console</a>.</>
-                                                ) : (
-                                                    <>Choose a provider above to get started.</>
-                                                )}
-                                            </p>
+                                             <div className="mt-2 flex items-center justify-between gap-2">
+                                                 <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                     {currentProvider === 'gemini' ? (
+                                                         <>Get yours for <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-primary hover:underline underline-offset-2 font-bold">free at Google AI Studio</a>.</>
+                                                     ) : currentProvider === 'groq' ? (
+                                                         <>Get yours from <a href="https://console.groq.com/keys" target="_blank" className="text-primary hover:underline underline-offset-2 font-bold">Groq Console</a>.</>
+                                                     ) : (
+                                                         <>Choose a provider above to get started.</>
+                                                     )}
+                                                 </p>
+                                                 <button 
+                                                    onClick={() => setShowApiKeyDialog(true)}
+                                                    className="text-[9px] font-black uppercase tracking-tighter text-primary hover:text-primary/80 transition-colors shrink-0"
+                                                 >
+                                                     Manage all your keys 
+                                                 </button>
+                                             </div>
                                         </div>
                                     )}
 
@@ -1023,7 +1031,7 @@ const Studio = () => {
                                                      <Button 
                                                          variant="ghost" 
                                                          size="sm" 
-                                                         className="h-7 text-[10px] font-black uppercase tracking-widest text-pink-600 hover:bg-pink-500/10 hover:text-pink-500 transition-all"
+                                                         className="h-7 text-[10px] font-black uppercase tracking-widest text-pink-600 hover:bg-pink-500/5 hover:text-pink-500 transition-all"
                                                          onClick={() => {
                                                              const sponsorBtn = document.querySelector('[data-sponsor-trigger]') as HTMLElement;
                                                              if (sponsorBtn) sponsorBtn.click();
