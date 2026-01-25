@@ -1,5 +1,7 @@
-import { ArrowRight, FileText, Brain, Download, GraduationCap, Microscope, BookOpen, Briefcase, Zap, Sparkles, Heart } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, FileText, Brain, Download, GraduationCap, Microscope, BookOpen, Briefcase, Zap, Sparkles, Heart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { signInWithGoogle } from "@/lib/supabase";
@@ -7,6 +9,7 @@ import { signInWithGoogle } from "@/lib/supabase";
 const Hero = () => {
   const { session, isSponsor } = useAuth();
   const navigate = useNavigate();
+  const [showSponsorBanner, setShowSponsorBanner] = useState(true);
 
   const handleGetStarted = async () => {
     if (session) {
@@ -28,12 +31,6 @@ const Hero = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left: Text Content */}
             <div className="relative z-0">
-              {isSponsor && (
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-widest mb-6 animate-pulse">
-                  <Heart className="w-3 h-3 fill-current" />
-                  Verified Sponsor Contribution Live
-                </div>
-              )}
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-[1.1] text-foreground">
                 Turn Anything into
                 <br />
@@ -64,62 +61,102 @@ const Hero = () => {
               </div>
             </div>
 
-            {/* Right: Preview Card */}
-            <div className="relative hidden lg:block">
-              {/* Stacked cards effect - subtle neutral tones */}
-              <div className="absolute top-4 left-4 w-full h-full bg-muted/60 rounded-2xl transform rotate-2" />
-              <div className="absolute top-2 left-2 w-full h-full bg-muted/40 rounded-2xl transform rotate-1" />
-              
-              {/* Main preview card */}
-              <div className="relative bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
-                {/* Window header */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b border-border">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                    <div className="w-3 h-3 rounded-full bg-green-400" />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground ml-2">MeshCards</span>
+            {/* Right: Preview Card & Sponsor Banner */}
+            <div className="relative">
+              {isSponsor && showSponsorBanner && (
+                <div className="mb-6 relative overflow-hidden rounded-3xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-background to-pink-500/10 p-6 shadow-[8px_8px_0_0_hsl(var(--primary)/0.2)] w-full transition-all hover:shadow-[12px_12px_0_0_hsl(var(--primary)/0.2)] group/sp">
+                            <button 
+                                onClick={() => setShowSponsorBanner(false)}
+                                className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-all z-20 opacity-0 group-hover/sp:opacity-100"
+                                title="Dismiss"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                    <div className="absolute -right-4 -top-4 opacity-10 rotate-12">
+                        <Sparkles className="w-24 h-24 text-primary" />
+                    </div>
+                    
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="flex -space-x-1">
+                                <div className="bg-primary p-1.5 rounded-lg shadow-lg">
+                                    <Heart className="w-5 h-5 text-white fill-current" />
+                                </div>
+                            </div>
+                            <span className="text-sm font-black uppercase tracking-widest bg-gradient-to-r from-primary to-pink-600 bg-clip-text text-transparent">
+                                You're Verified Sponsor
+                            </span>
+                        </div>
+                        <h3 className="text-xl font-black text-foreground mb-1 leading-tight text-pink-600">
+                            Intelligence Unlocked
+                        </h3>
+                        <p className="text-sm text-muted-foreground font-medium mb-4 leading-relaxed">
+                            You're using <strong>High-Capacity System Keys</strong> via our community-supported infrastructure. No personal API keys required for any model.
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary font-bold bg-primary/5 uppercase">Zero-Config Enabled</Badge>
+                            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary font-bold bg-primary/5 uppercase">All Models Free</Badge>
+                        </div>
+                    </div>
                 </div>
+              )}
+
+              <div className="relative hidden lg:block h-full">
+                {/* Stacked cards effect - subtle neutral tones */}
+                <div className="absolute top-4 left-4 w-full h-full bg-muted/60 rounded-2xl transform rotate-2" />
+                <div className="absolute top-2 left-2 w-full h-full bg-muted/40 rounded-2xl transform rotate-1" />
                 
-                {/* Card content */}
-                <div className="p-6 space-y-4">
-                  {/* Service indicator */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Brain className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Flashcard Deck</p>
-                        <p className="font-semibold text-sm">biology-chapter-5</p>
-                      </div>
+                {/* Main preview card */}
+                <div className="relative bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
+                  {/* Window header */}
+                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b border-border">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-400" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                      <div className="w-3 h-3 rounded-full bg-green-400" />
                     </div>
-                    <span className="px-3 py-1 bg-green-500/10 text-green-600 text-xs font-semibold rounded-full flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                      Ready
-                    </span>
+                    <span className="text-xs font-medium text-muted-foreground ml-2">MeshCards</span>
                   </div>
                   
-                  {/* Stats row */}
-                  <div className="bg-muted/30 rounded-xl p-4 border border-border">
-                    <p className="text-xs text-muted-foreground mb-2">Generated Cards</p>
-                    <div className="flex items-end gap-1">
-                      {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
-                        <div 
-                          key={i} 
-                          className="w-4 bg-primary/60 rounded-sm" 
-                          style={{ height: `${h * 0.4}px` }}
-                        />
-                      ))}
+                  {/* Card content */}
+                  <div className="p-6 space-y-4">
+                    {/* Service indicator */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Brain className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Flashcard Deck</p>
+                          <p className="font-semibold text-sm">biology-chapter-5</p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 bg-green-500/10 text-green-600 text-xs font-semibold rounded-full flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                        Ready
+                      </span>
                     </div>
-                  </div>
-                  
-                  {/* Sample flashcard */}
-                  <div className="bg-background rounded-xl border border-border p-4 shadow-sm">
-                    <p className="text-xs font-bold text-primary mb-1">Q1</p>
-                    <p className="text-sm font-medium mb-2">What is mitochondria?</p>
-                    <p className="text-xs text-muted-foreground">The powerhouse of the cell...</p>
+                    
+                    {/* Stats row */}
+                    <div className="bg-muted/30 rounded-xl p-4 border border-border">
+                      <p className="text-xs text-muted-foreground mb-2">Generated Cards</p>
+                      <div className="flex items-end gap-1">
+                        {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
+                          <div 
+                            key={i} 
+                            className="w-4 bg-primary/60 rounded-sm" 
+                            style={{ height: `${h * 0.4}px` }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Sample flashcard */}
+                    <div className="bg-background rounded-xl border border-border p-4 shadow-sm">
+                      <p className="text-xs font-bold text-primary mb-1">Q1</p>
+                      <p className="text-sm font-medium mb-2">What is mitochondria?</p>
+                      <p className="text-xs text-muted-foreground">The powerhouse of the cell...</p>
+                    </div>
                   </div>
                 </div>
               </div>

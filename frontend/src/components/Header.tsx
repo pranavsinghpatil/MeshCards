@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Heart, ChevronDown, Settings, Check } from "lucide-react";
+import { Menu, X, Sparkles, Palette, LogIn, LogOut, User, Heart, ChevronDown, Settings, Check, Shield } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTheme, themes } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,6 +42,7 @@ const Header = () => {
     { name: "Guide", path: "/guide" },
     { name: "Feedback", path: "/feedback" },
     { name: "Legal", path: "/legal" },
+    { name: "Admin", path: "/admin" },
   ];
 
   return (
@@ -307,27 +308,54 @@ const Header = () => {
                                 <Sparkles className="w-4 h-4" />
                                 Flashcard Studio
                             </Link>
-                            <button 
-                                onClick={() => {
-                                    // This event is caught by Studio.tsx to open the dialog
-                                    window.dispatchEvent(new CustomEvent('mesh_open_api_settings'));
-                                    setUserMenuOpen(false);
-                                }}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold hover:bg-primary/10 hover:text-primary rounded-lg transition-colors"
-                            >
-                                <Settings className="w-4 h-4" />
-                                API Key Settings
-                            </button>
-                            <div className="h-px bg-foreground/10 my-1 mx-2" />
-                            <button 
-                                onClick={handleSignOut}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                Sign Out
-                            </button>
-                        </div>
-                    </div>
+                            {!isSponsor ? (
+                                <>
+                                    <button 
+                                        onClick={() => {
+                                            // This event is caught by Studio.tsx to open the dialog
+                                            window.dispatchEvent(new CustomEvent('mesh_open_api_settings'));
+                                            setUserMenuOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold hover:bg-primary/10 hover:text-primary rounded-lg transition-colors text-left"
+                                    >
+                                        <Settings className="w-4 h-4" />
+                                        API Key Settings
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            const sponsorBtn = document.querySelector('[data-sponsor-trigger]') as HTMLElement;
+                                            if (sponsorBtn) sponsorBtn.click();
+                                            setUserMenuOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-pink-500 hover:bg-pink-50 dark:hover:bg-pink-950/30 rounded-lg transition-colors text-left"
+                                    >
+                                        <Heart className="w-4 h-4" />
+                                        Become a Sponsor
+                                    </button>
+                                </>
+                            ) : (
+                                <div className="px-3 py-2 my-1 bg-primary/5 border border-primary/10 rounded-lg mx-1">
+                                    <p className="text-[10px] font-black text-primary uppercase tracking-widest text-center">Zero-Config Active</p>
+                                </div>
+                            )}
+                            <Link 
+                                 to="/admin"
+                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold hover:bg-primary/10 hover:text-primary rounded-lg transition-colors border-l-2 border-transparent hover:border-primary"
+                                 onClick={() => setUserMenuOpen(false)}
+                             >
+                                 <Shield className="w-4 h-4" />
+                                 Platform Console
+                             </Link>
+                             <div className="h-px bg-foreground/10 my-1 mx-2" />
+                             <button 
+                                 onClick={handleSignOut}
+                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                             >
+                                 <LogOut className="w-4 h-4" />
+                                 Sign Out
+                             </button>
+                         </div>
+                     </div>
                 </div>
             ) : (
                 <Button variant="default" size="sm" onClick={handleSignIn} className="gap-2 font-bold shadow-md hover:shadow-lg transition-all">

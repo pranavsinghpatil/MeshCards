@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     NOVITA_API_KEY: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = None
     
     # Access Control Settings
     # Novita Access: "all" = everyone can use, "sponsors_only" = only sponsors

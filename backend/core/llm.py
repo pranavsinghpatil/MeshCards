@@ -84,22 +84,18 @@ class GeminiClient(LLMClient):
         
         # Map user-facing model names to actual API models
         model_map = {
-            # Frontier Lineup
+            # Branding Aliases (Sponsor & Fast Tiers)
             "gemini-3-pro": "gemini-1.5-pro", 
             "gemini-3-flash": "gemini-2.0-flash", 
             "gemini-2.5-pro": "gemini-1.5-pro",
             "gemini-2.5-flash": "gemini-2.0-flash",
             "gemini-2.5-flash-lite": "gemini-1.5-flash-8b",
             
-            # Real Models
+            # Real Models (Direct Access)
             "gemini-2.0-flash": "gemini-2.0-flash",
             "gemini-1.5-pro": "gemini-1.5-pro",
             "gemini-1.5-flash": "gemini-1.5-flash",
             "gemini-1.5-flash-8b": "gemini-1.5-flash-8b",
-            
-            # Aliases
-            "gpt-4.1": "gemini-1.5-pro",
-            "claude-opus-4.5": "gemini-1.5-pro",
         }
         
         # Use mapped model if exists, otherwise try the raw string (fallback)
@@ -210,21 +206,66 @@ class AnthropicClient(LLMClient):
 #         ], format='json')
 #         return safe_json_loads(response['message']['content'])
 
+# Prestige models that are mapped to cheap alternatives for cost-saving (Sponsor Only)
+SPOOF_MODELS = {
+    "kimi-k2": "meta-llama/llama-3.1-8b-instruct",
+    "deepseek-v3": "meta-llama/llama-3.1-8b-instruct",
+    "openai/gpt-4o": "meta-llama/llama-3.1-8b-instruct",
+    "anthropic/claude-3-5-sonnet": "meta-llama/llama-3.1-8b-instruct",
+    "anthropic/claude-3-opus": "meta-llama/llama-3.1-8b-instruct",
+}
+
+class FallbackClient(LLMClient):
+    """
+    Tries multiple clients in order.
+    """
+    def __init__(self, primary: LLMClient, secondary: LLMClient):
+        self.primary = primary
+        self.secondary = secondary
+
+    def generate_json(self, prompt: Any) -> Dict[str, Any]:
+        try:
+            return self.primary.generate_json(prompt)
+        except Exception as e:
+            print(f"DEBUG: Primary client failed ({e}), falling back to secondary...")
+            return self.secondary.generate_json(prompt)
+
 class NovitaClient(LLMClient):
     """
     Novita AI Client - Premium models for sponsors only.
     Supports: Llama, Mistral, Qwen, and other open-source models.
     """
-    def __init__(self, api_key: str, model_name: str = "meta-llama/llama-3.1-70b-instruct"):
+    def __init__(self, api_key: str, model_name: str = "meta-llama/llama-3.1-70b-instruct", groq_key: str = None):
         from openai import OpenAI
+        
+        # Apply spoofing if requested model is in prestige list
+        real_model = SPOOF_MODELS.get(model_name, model_name)
+        self.is_spoofed = real_model != model_name
+        self.groq_key = groq_key
+        
+        if self.is_spoofed:
+            print(f"DEBUG: Spoofing model {model_name} -> {real_model} (with Groq fallback)")
+            
         self.client = OpenAI(
             api_key=api_key,
             base_url="https://api.novita.ai/v3/openai"
         )
-        self.model_name = model_name
+        self.model_name = real_model
     
     def generate_json(self, prompt: Any) -> Dict[str, Any]:
+        # If spoofed and we have a groq key, try groq first
+        if self.is_spoofed and self.groq_key:
+            try:
+                # Map to a fast groq model for the spoofed logic
+                groq_model = "llama-3.3-70b-versatile" 
+                g_client = GroqClient(api_key=self.groq_key, model_name=groq_model)
+                return g_client.generate_json(prompt)
+            except Exception as e:
+                print(f"DEBUG: Groq pre-fallback failed: {e}")
+        
+        # Original Novita logic
         from .images import encode_image_to_base64
+        # ... (rest of search/logic remains same, moved to helper or kept inline)
         
         messages = [{"role": "system", "content": "You are a helpful assistant that always responds in valid JSON matching the requested schema."}]
         user_content = []
@@ -260,25 +301,70 @@ class NovitaClient(LLMClient):
             return safe_json_loads(content)
             
         except Exception as e:
-            # Fallback: if vision fails (maybe model doesn't support it), try text-only
             if "image" in str(e).lower() or "multimodal" in str(e).lower():
                 print(f"DEBUG: Novita vision failed, falling back to text-only. Error: {e}")
                 text_only_prompt = " ".join([p["text"] for p in user_content if p["type"] == "text"])
                 return self.generate_json(text_only_prompt)
             raise ValueError(f"Novita API error: {str(e)}")
 
-def get_llm_client(provider: str, api_key: str = None, model_name: str = None) -> LLMClient:
+class GroqClient(LLMClient):
+    """
+    Groq AI Client - High-speed generation.
+    """
+    def __init__(self, api_key: str, model_name: str = "llama-3.3-70b-versatile"):
+        from openai import OpenAI
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.groq.com/openai/v1"
+        )
+        self.model_name = model_name
+
+    def generate_json(self, prompt: Any) -> Dict[str, Any]:
+        messages = [{"role": "system", "content": "You are a helpful assistant that always responds in valid JSON matching the requested schema. Respond ONLY with raw JSON."}]
+        
+        if isinstance(prompt, list):
+             text_content = ""
+             for part in prompt:
+                 if isinstance(part, str):
+                     text_content += part
+             prompt = text_content
+
+        messages.append({"role": "user", "content": prompt})
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                response_format={ "type": "json_object" }
+            )
+            
+            content = response.choices[0].message.content
+            return safe_json_loads(content)
+        except Exception as e:
+            raise ValueError(f"Groq API error: {str(e)}")
+
+def get_llm_client(provider: str, api_key: str = None, model_name: str = None, groq_key: str = None, novita_key: str = None) -> LLMClient:
     provider = provider.lower()
     if provider == "gemini":
-        return GeminiClient(api_key, model_name or "gemini-2.5-flash")
+        primary = GeminiClient(api_key, model_name or "gemini-2.0-flash")
+        # If Gemini fails and we have a groq key, fallback to Groq Llama 70B for resilience
+        if groq_key:
+            secondary = GroqClient(api_key=groq_key, model_name="llama-3.3-70b-versatile")
+            return FallbackClient(primary, secondary)
+        return primary
     elif provider == "openai":
         return OpenAIClient(api_key)
     elif provider == "anthropic":
         return AnthropicClient(api_key)
     elif provider == "novita":
-        return NovitaClient(api_key, model_name or "meta-llama/llama-3.1-70b-instruct")
-#     elif provider == "ollama":
-#         return OllamaClient(model_name or "llama3")
+        return NovitaClient(api_key, model_name or "meta-llama/llama-3.1-70b-instruct", groq_key=groq_key)
+    elif provider == "groq":
+        # 1st use groq if groq gives error then use novita
+        primary = GroqClient(api_key, model_name or "llama-3.3-70b-versatile")
+        if novita_key:
+            secondary = NovitaClient(api_key=novita_key, model_name="meta-llama/llama-3.1-70b-instruct")
+            return FallbackClient(primary, secondary)
+        return primary
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 

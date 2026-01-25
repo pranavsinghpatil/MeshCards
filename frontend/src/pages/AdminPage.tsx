@@ -39,7 +39,6 @@ interface Stats {
 
 const AdminPage = () => {
     const { user, refreshSponsorStatus } = useAuth();
-    const { toast } = useToast();
     const [stats, setStats] = useState<Stats | null>(null);
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);

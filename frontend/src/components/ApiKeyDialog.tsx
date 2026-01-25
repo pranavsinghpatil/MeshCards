@@ -25,30 +25,16 @@ const PROVIDERS = [
     { 
         id: "gemini", 
         name: "Google Gemini", 
-        desc: "Powers Gemini Pro & Flash models", 
+        desc: "Powers Google's latest AI models (Pro & Flash). Recommended for most users.", 
         link: "https://aistudio.google.com/app/apikey",
         prefix: "AIza"
     },
     { 
-        id: "novita", 
-        name: "Novita AI", 
-        desc: "Powers Llama 3.3, Qwen 2.5, & Mistral", 
-        link: "https://novita.ai",
-        prefix: "" 
-    },
-    { 
-        id: "openai", 
-        name: "OpenAI", 
-        desc: "Powers GPT-4o models", 
-        link: "https://platform.openai.com/api-keys",
-        prefix: "sk-" 
-    },
-    { 
-        id: "anthropic", 
-        name: "Anthropic", 
-        desc: "Powers Claude 3.5 Sonnet", 
-        link: "https://console.anthropic.com/settings/keys",
-        prefix: "sk-ant" 
+        id: "groq", 
+        name: "Groq AI", 
+        desc: "Powers hyper-fast Llama 3.3 models. Choose this for near-instant generation.", 
+        link: "https://console.groq.com/keys",
+        prefix: "gsk_" 
     }
 ];
 

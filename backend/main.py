@@ -136,6 +136,8 @@ def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
         env_key = settings.OPENAI_API_KEY
     elif provider == "anthropic":
         env_key = settings.ANTHROPIC_API_KEY
+    elif provider == "groq":
+        env_key = settings.GROQ_API_KEY
         
     if env_key:
         return env_key
@@ -178,7 +180,14 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
         
         # 1. Initialize LLM
         api_key = get_real_api_key(provider, user_key)
-        llm_client = get_llm_client(provider, api_key, config_data.get('model_name'))
+        # Pass system keys for fallback logic (Groq first, then Novita)
+        llm_client = get_llm_client(
+            provider, 
+            api_key, 
+            config_data.get('model_name'), 
+            groq_key=settings.GROQ_API_KEY,
+            novita_key=settings.NOVITA_API_KEY
+        )
         generator = FlashcardGenerator(llm_client)
 
         # 2. Generate Cards
@@ -433,23 +442,19 @@ async def submit_job(
     
     if provider == "novita":
         if is_sponsor:
-             # Sponsor: Use System Key (if they didn't provide one, or even if they did, prefer system?)
-             # Actually, if they provided one, let them use it. If not, use system.
+             # Sponsor: Use System Key if none provided
              if not real_api_key:
                  real_api_key = settings.NOVITA_API_KEY
                  logger.info(f"Sponsor {user.id} using System Novita Key.")
         else:
-            # Free User: MUST provide key
-            if not real_api_key:
-                 raise HTTPException(
-                    status_code=403,
-                    detail=(
-                        "💎 Rare Models (Llama 3.3, Qwen 2.5) are restricted.\n\n"
-                        "Option 1: Become a Sponsor to use them for free.\n"
-                        "Option 2: Provide your own Novita API Key in Settings."
-                    )
+            # Free User: BLOCK Rare Models (View only in UI, Enforce in Backend)
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "💎 Frontier Engines (GPT-4o, Claude 3, DeepSeek) are strictly for Sponsors.\n\n"
+                    "Please become a Sponsor to unlock these high-intelligence engines."
                 )
-            logger.info(f"Free user {user.id} using OWN Novita Key.")
+            )
 
     elif provider == "gemini":
         if is_sponsor:
@@ -460,13 +465,25 @@ async def submit_job(
         else:
             # Free User: MUST provide key (Enforce BYOK)
             if not real_api_key:
-                # But wait, did we set GEMINI_MODE to 'shared' in .env?
-                # The user wants "free accounts can generate 2 decks by there key only"
-                # So we FORCE BYOK for free users irrespective of env setting
                  raise HTTPException(
                     status_code=403, 
                     detail="Free Tier requires you to provide your own Gemini API Key. Sponsors get free access."
                 )
+
+    elif provider == "groq":
+        if is_sponsor:
+            # Sponsor: Use System Key if none provided
+            if not real_api_key:
+                real_api_key = settings.GROQ_API_KEY
+                logger.info(f"Sponsor {user.id} using System Groq Key.")
+        else:
+            # Free User: MUST provide key
+            if not real_api_key:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Groq requires you to provide your own Groq API Key (gsk_...)."
+                )
+            logger.info(f"User {user.id} using OWN Groq Key.")
 
     # Update the key in the request arguments for the generator task
     api_key = real_api_key
