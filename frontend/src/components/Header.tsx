@@ -41,8 +41,7 @@ const Header = () => {
     { name: "Studio", path: "/studio" },
     { name: "Guide", path: "/guide" },
     { name: "Feedback", path: "/feedback" },
-    { name: "Legal", path: "/legal" },
-    { name: "Admin", path: "/admin" },
+    
   ];
 
   return (
@@ -338,14 +337,7 @@ const Header = () => {
                                     <p className="text-[10px] font-black text-primary uppercase tracking-widest text-center">Zero-Config Active</p>
                                 </div>
                             )}
-                            <Link 
-                                 to="/admin"
-                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold hover:bg-primary/10 hover:text-primary rounded-lg transition-colors border-l-2 border-transparent hover:border-primary"
-                                 onClick={() => setUserMenuOpen(false)}
-                             >
-                                 <Shield className="w-4 h-4" />
-                                 Platform Console
-                             </Link>
+                            
                              <div className="h-px bg-foreground/10 my-1 mx-2" />
                              <button 
                                  onClick={handleSignOut}

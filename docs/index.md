@@ -15,6 +15,7 @@ High-level project information, goals, and user guides.
 ## 🏗️ 02. Architecture
 Technical design, data flow, and system infrastructure.
 - [**System Architecture**](02-Architecture/system-architecture.md): Overall block diagram and core modules.
+- [**Generation Workflow**](02-Architecture/generation-workflow.md): Detailed end-to-end logic from login to .apkg.
 
 ## ⚙️ 03. Core Systems
 Deep dives into the technical implementation of our unique engines.
