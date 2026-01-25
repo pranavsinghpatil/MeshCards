@@ -188,7 +188,15 @@ const Studio = () => {
   const [lastJobId, setLastJobId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
-  const [userApiKey, setUserApiKey] = useState<string>(() => localStorage.getItem("mesh_user_api_key") || "");
+  // Store all keys in a dict: { gemini: "...", novita: "...", etc }
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>(() => {
+      try {
+          return JSON.parse(localStorage.getItem("mesh_api_keys") || "{}");
+      } catch {
+          return {};
+      }
+  });
+
   const [currentProvider, setCurrentProvider] = useState<string>("gemini");
   const [geminiMode, setGeminiMode] = useState<string>("shared"); 
   const [novitaAccessMode, setNovitaAccessMode] = useState<string>("sponsors_only"); 
@@ -208,11 +216,16 @@ const Studio = () => {
   ];
 
   const handleModelTabChange = (newTab: "standard" | "high_logic") => {
-    if (newTab === "high_logic" && !isSponsor && novitaAccessMode === 'sponsors_only') {
+    // Check access for High Logic Models
+    // Exception: If they provided a Novita Key, they get access regardless of sponsor status
+    const hasNovitaKey = !!apiKeys["novita"];
+    
+    if (newTab === "high_logic" && !isSponsor && novitaAccessMode === 'sponsors_only' && !hasNovitaKey) {
         toast({ 
             title: "Rare Models Locked", 
-            description: "These high-reasoning models are reserved for project sponsors.", 
-            variant: "destructive" 
+            description: "Provide a Novita API Key OR become a Sponsor to unlock these models.", 
+            variant: "destructive",
+            action: <Button variant="outline" size="sm" onClick={() => setShowApiKeyDialog(true)}>Enter Key</Button>
         });
         return;
     }
@@ -504,14 +517,17 @@ const Studio = () => {
       toast({ title: "No content", description: "Please paste text or upload a file first.", variant: "destructive" });
       return;
     }
+    
+    // Get the key for the current provider
+    const activeKey = apiKeys[currentProvider] || "";
 
-    // Check for BYOK mode - prompt for API key if using Gemini in BYOK mode
-    if (currentProvider === "gemini" && geminiMode === "byok" && !userApiKey) {
-        setCurrentProvider("gemini");
+    // Check for Access/Key Requirements
+    // Rule: Non-Sponsors must provide their own key for ALL providers.
+    if (!isSponsor && !activeKey) {
         setShowApiKeyDialog(true);
         toast({ 
             title: "API Key Required", 
-            description: "This service requires you to use your own Gemini API key.",
+            description: `Free Tier users must provide a ${currentProvider === 'gemini' ? 'Gemini' : 'Novita'} API key. Sponsors get free model access!`,
             variant: "default"
         });
         return;
@@ -533,8 +549,8 @@ const Studio = () => {
         payload.append("style", cardStyle);
         
         // Add user API key if provided
-        if (userApiKey) {
-            payload.append("api_key", userApiKey);
+        if (activeKey) {
+            payload.append("api_key", activeKey);
         }
         
         // Default deck name to first file if present
@@ -581,28 +597,18 @@ const Studio = () => {
     setGenerationSuccess(false);
   };
   
-  const handleApiKeySubmit = async (apiKey: string) => {
-      if (!apiKey) {
-          // Clearing the key
-          setUserApiKey("");
-          localStorage.removeItem("mesh_user_api_key");
-          toast({ title: "API Key Cleared", description: "You are now using the shared free quota." });
-          return;
-      }
-
-      setUserApiKey(apiKey);
-      localStorage.setItem("mesh_user_api_key", apiKey);
-      setShowApiKeyDialog(false);
-      
+  const handleApiKeysUpdate = (newKeys: Record<string, string>) => {
+      setApiKeys(newKeys);
       toast({
-          title: "API Key Saved",
-          description: "Your key is saved locally for this browser. Retrying generation...",
+          title: "API Configuration Saved",
+          description: "Your keys have been updated. Retrying generation...",
           duration: 3000
       });
       
-      // Retry generation with user's key if it was a retry-action
+      // Retry if we were stuck
       if (isGenerating) {
-        await handleGenerate();
+        // Giving state a moment to settle
+        setTimeout(() => handleGenerate(), 500);
       }
   };
   
@@ -936,16 +942,16 @@ const Studio = () => {
                             onClick={() => isSponsor && setShowApiKeyDialog(true)}
                             className={`text-center text-sm font-medium mb-2 transition-opacity ${isSponsor ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
                         >
-                             {(userApiKey || isSponsor) ? (
+                             {isSponsor ? (
                                   <div className="space-y-1">
                                     <span className="text-primary flex items-center justify-center gap-2">
                                         <ShieldCheck className="w-4 h-4" />
-                                        {userApiKey ? "Using Private API Key (Unlimited)" : `Daily Quota: ${Math.max(0, 5 - dailyCount)} / 5 decks left`}
+                                        {`Daily Quota: ${Math.max(0, 5 - dailyCount)} / 5 decks left`}
                                     </span>
                                 </div>
                             ) : (
-                               <span className={`${(dailyCount >= 2 && !userApiKey) ? "text-red-500 font-black" : "text-primary"}`}>
-                                    {(dailyCount >= 2 && !userApiKey) 
+                               <span className={`${dailyCount >= 2 ? "text-red-500 font-black" : "text-primary"}`}>
+                                    {dailyCount >= 2 
                                         ? "⚠️ Daily Limit Reached" 
                                         : `Daily Limit: ${Math.max(0, 2 - dailyCount)} / 2 decks left`}
                                     <p className="text-[10px] text-muted-foreground mt-0.5 font-normal">
@@ -958,25 +964,19 @@ const Studio = () => {
                     
                     <Button 
                         onClick={handleGenerate} 
-                        disabled={isGenerating || !hasContent || (dailyCount !== null && dailyCount >= (isSponsor ? 5 : 2) && !userApiKey) || (!isSponsor && currentProvider === 'novita')} 
+                        disabled={isGenerating || !hasContent} 
                         className={`w-full py-6 rounded-xl font-bold transition-all shadow-[4px_4px_0_0_#000] border-2 border-foreground hover:translate-y-[2px] hover:shadow-none disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none
-                            ${((dailyCount !== null && dailyCount >= (isSponsor ? 5 : 2) && !userApiKey) || (!isSponsor && currentProvider === 'novita')) ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90"}
+                            ${isGenerating ? "opacity-90 cursor-wait" : "hover:bg-primary hover:text-primary-foreground"}
                         `}
                     >
                         {isGenerating ? (
                             <><RefreshCw className="mr-2 animate-spin h-5 w-5" /> Processing...</>
-                        ) : (dailyCount !== null && dailyCount >= (isSponsor ? 5 : 2) && !userApiKey) ? (
-                            "Daily Limit Reached"
-                        ) : (!isSponsor && currentProvider === 'novita') ? (
-                            <><Heart className="mr-2 h-5 w-5 fill-current" /> Unlock with Sponsor</>
-                        ) : isSponsor && currentProvider === 'novita' ? (
-                            <><Zap className="mr-2 h-5 w-5 fill-yellow-400 text-yellow-500" /> Advanced Reasoning Core</>
                         ) : (
                             "Generate Flashcards"
                         )}
                     </Button>
                     
-                    {(dailyCount !== null && dailyCount >= (isSponsor ? 5 : 2) && !userApiKey) && (
+                    {false && (
                         <p className="text-[10px] text-center mt-3 text-muted-foreground italic">
                             {isSponsor 
                                 ? "Daily sponsor limit reached. Upgrade to absolute unlimited by contacting us!" 
@@ -997,13 +997,12 @@ const Studio = () => {
       {/* API Key Modal */}
       <ApiKeyDialog 
         open={showApiKeyDialog} 
-        onClose={() => {
-            setShowApiKeyDialog(false);
-            setIsGenerating(false);
-        }}
-        onSubmit={handleApiKeySubmit}
-        provider={currentProvider}
-        isByokRequired={statusMessage.includes("Required") || geminiMode === "byok"}
+        onClose={() => setShowApiKeyDialog(false)}
+        onKeysUpdate={handleApiKeysUpdate}
+        defaultProvider={currentProvider}
+        isByokRequired={
+            !isSponsor // Free users always need a key now
+        }
       />
     </div>
   );

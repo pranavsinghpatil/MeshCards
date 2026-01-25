@@ -266,19 +266,7 @@ VITE_MAINTENANCE_MODE=false
    - Start Command: `uvicorn backend.main:app --host 0.0.0.0 --port 8000`
 5. **Deploy**
 
-[Full Guide](docs/leapcell-deployment.md)
-
-### Frontend (Vercel)
-
-1. **Import Project** on Vercel
-2. **Configure**:
-   - Framework: Vite
-   - Root Directory: `frontend`
-3. **Set Environment Variables**:
-   - `VITE_API_URL=https://your-backend.leapcell.app`
-4. **Deploy**
-
-[Full Guide](docs/vercel-deployment.md)
+[Full Guide](docs/05-Deployment/production-guide.md)
 
 ### Supabase Setup
 
@@ -292,7 +280,7 @@ VITE_MAINTENANCE_MODE=false
        created_at TIMESTAMP DEFAULT NOW()
    );
    ```
-3. **Enable RLS Policies** ([Guide](docs/supabase-rls-policies.sql))
+3. **Enable RLS Policies** ([Guide](docs/04-Auth-Quota/supabase-rls-policies.sql))
 4. **Get API Keys** from Project Settings
 
 ---
@@ -317,16 +305,12 @@ We welcome contributions! Here's how:
 
 ## 📝 Documentation
 
-- [API Limit Protection](docs/api-limit-protection.md)
-- [Authentication & Quota](docs/auth-quota-enforcement.md)
-- [Automatic Error Reporting](docs/automatic-error-reporting.md)
-- [Feedback System](docs/feedback-system-summary.md)
-- [GitHub Integration](docs/github-feedback-setup.md)
-- [IST Quota System](docs/quota-system-ist.md)
-- [Maintenance Mode](docs/maintenance-mode-guide.md)
-- [Leapcell Deployment](docs/leapcell-deployment.md)
-- [Vercel Deployment](docs/vercel-deployment.md)
-- [Vision API Integration](docs/vision-api-integration.md)
+- [**Mission & Purpose**](docs/01-Overview/mission.md): The problem we solve.
+- [**Quick Start User Guide**](docs/01-Overview/user-guide.md): Get generating in minutes.
+- [**System Architecture**](docs/02-Architecture/system-architecture.md): How it works under the hood.
+- [**Auth & Quotas**](docs/04-Auth-Quota/system-design.md): Understanding limits and BYOK.
+- [**Production Guide**](docs/05-Deployment/production-guide.md): Full deployment checklist.
+- [**Developer Guide**](docs/06-Guides-Debugging/developer-guide.md): Setup and debugging.
 
 ---
 

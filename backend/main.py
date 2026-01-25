@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request, Header
+# Trigger reload
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -118,62 +119,32 @@ def cleanup_file(path: str):
 
 def get_real_api_key(provider: str, user_key: Optional[str] = None) -> str:
     """
-    Get API key based on provider and mode settings.
-    
-    For Gemini:
-    - BYOK mode: User MUST provide their own key
-    - Shared mode: Use system key first, fallback to user key
-    
-    For other providers: Always use system key or user-provided key
+    Validates availability of an API key.
+    Logic moved to main.py -> submit_job to handle Sponsor vs Free logic.
+    This now simply returns the key if present, or tries system ENV.
     """
-    
-    # Special handling for Gemini based on mode
-    if provider == "gemini":
-        if settings.GEMINI_MODE == "byok":
-            # BYOK Mode: User MUST provide their own key
-            if user_key and user_key.strip():
-                return user_key
-            else:
-                # Raise special error that frontend can recognize
-                raise ValueError(
-                    "BYOK_REQUIRED|"
-                    "This service requires you to use your own Gemini API key. "
-                    "Get a free key at https://aistudio.google.com/app/apikey"
-                )
-        elif settings.GEMINI_MODE == "shared":
-            # Shared Mode: Prefer user key if provided, otherwise use system key
-            if user_key and user_key.strip():
-                return user_key
-            
-            env_key = settings.GEMINI_API_KEY
-            if env_key:
-                return env_key
-            
-            # If shared fails, prompt for BYOK anyway
-            raise ValueError(
-                "API_LIMIT_EXCEEDED|"
-                "No Gemini API Key available from system. Please provide your own key."
-            )
-        else:
-            logger.warning(f"Invalid GEMINI_MODE: {settings.GEMINI_MODE}. Defaulting to shared.")
-            # Default to shared mode behavior
-            if user_key and user_key.strip():
-                return user_key
-            if settings.GEMINI_API_KEY:
-                return settings.GEMINI_API_KEY
-            raise ValueError("API_LIMIT_EXCEEDED|No API Key found for Gemini.")
-    
-    # For other providers (OpenAI, Anthropic, Novita): Standard behavior
-    # 1. User provided key (BYOK)
     if user_key and user_key.strip():
         return user_key
     
-    # 2. System ENV key
-    env_key = getattr(settings, f"{provider.upper()}_API_KEY", None)
+    # Fallback to system env if passed (usually for Sponsors)
+    env_key = None
+    if provider == "gemini":
+        env_key = settings.GEMINI_API_KEY
+    elif provider == "novita":
+        env_key = settings.NOVITA_API_KEY
+    elif provider == "openai":
+        env_key = settings.OPENAI_API_KEY
+    elif provider == "anthropic":
+        env_key = settings.ANTHROPIC_API_KEY
+        
     if env_key:
         return env_key
-        
-    raise ValueError(f"API_LIMIT_EXCEEDED|No API Key found for {provider}. Please provide one.")
+
+    # Failure case
+    if provider == "gemini":
+         raise ValueError("byok_required|Gemini API Key Required (Free users must provide own key)")
+    else:
+         raise ValueError(f"API Key Required for {provider}")
 
 def log_error_to_github(e: Exception, context: str = "", user_id: str = None, request_data: dict = None):
     """
@@ -448,49 +419,57 @@ async def submit_job(
         )
     
     # 2. Check Daily Quota (2 decks per day, resets at 12 AM IST)
-    # BYPASS quota check ONLY if user is a sponsor AND providing their own API key
+    # Sponsors get 5 decks/day. Free users get 2 decks/day.
+    # We enforce this limit regardless of API key usage to manage server load (OCR, PDF processing etc.)
+    check_quota(user)
+    
     is_sponsor = check_sponsor(user.id, email=user.email)
+
+    # 3. Determine Execution Mode & API Key Requirements
+    # Logic: Sponsors get "Shared" mode (System Key) for everything.
+    #        Free users get "BYOK" mode (Must provide key) for everything.
     
-    if api_key:
-        if not is_sponsor:
-            logger.warning(f"Non-sponsor user {user.id} tried to bypass quota with an API key. Enforcing limit.")
-            check_quota(user)
-        else:
-            logger.info(f"Sponsor {user.id} is using their own API key, bypassing quota check.")
-    else:
-        check_quota(user)
+    real_api_key = api_key # Default to what was sent
     
-    # 3. Check Novita (Rare Models) access
     if provider == "novita":
-        if settings.NOVITA_ACCESS_MODE == "sponsors_only":
-            if not is_sponsor:
-                raise HTTPException(
+        if is_sponsor:
+             # Sponsor: Use System Key (if they didn't provide one, or even if they did, prefer system?)
+             # Actually, if they provided one, let them use it. If not, use system.
+             if not real_api_key:
+                 real_api_key = settings.NOVITA_API_KEY
+                 logger.info(f"Sponsor {user.id} using System Novita Key.")
+        else:
+            # Free User: MUST provide key
+            if not real_api_key:
+                 raise HTTPException(
                     status_code=403,
                     detail=(
-                        "💎 Rare Models (Llama 3.3, Qwen 2.5) are exclusive to project Supporters.\n\n"
-                        "These models require high-logic reasoning and cost significantly more to operate. "
-                        "Support us to unlock these and get a 5-deck daily limit!"
+                        "💎 Rare Models (Llama 3.3, Qwen 2.5) are restricted.\n\n"
+                        "Option 1: Become a Sponsor to use them for free.\n"
+                        "Option 2: Provide your own Novita API Key in Settings."
                     )
                 )
-        # Even with an API key, if mode is sponsors_only, we might want to respect it for branding
-        # But if they have a key, they technically aren't costing US money. 
-        # However, the user said "normal user should not able to use the premium man".
-        # So we stick to the sponsorship check regardless of API key for Novita if strictly required.
-        if settings.NOVITA_ACCESS_MODE == "sponsors_only" and not is_sponsor:
-             raise HTTPException(status_code=403, detail="Rare Models are restricted to sponsors only.")
-        elif settings.NOVITA_ACCESS_MODE == "all":
-            # Open mode: Everyone can use Novita (no check needed)
-            pass
+            logger.info(f"Free user {user.id} using OWN Novita Key.")
+
+    elif provider == "gemini":
+        if is_sponsor:
+            # Sponsor: Use System Key if available
+            if not real_api_key:
+                real_api_key = settings.GEMINI_API_KEY
+                logger.info(f"Sponsor {user.id} using System Gemini Key.")
         else:
-            # Invalid mode - log and default to sponsors_only
-            logger.warning(f"Invalid NOVITA_ACCESS_MODE: {settings.NOVITA_ACCESS_MODE}. Defaulting to sponsors_only.")
-            if not check_sponsor(user.id):
-                raise HTTPException(
-                    status_code=403,
-                    detail="Premium AI models are restricted. Please contact support."
+            # Free User: MUST provide key (Enforce BYOK)
+            if not real_api_key:
+                # But wait, did we set GEMINI_MODE to 'shared' in .env?
+                # The user wants "free accounts can generate 2 decks by there key only"
+                # So we FORCE BYOK for free users irrespective of env setting
+                 raise HTTPException(
+                    status_code=403, 
+                    detail="Free Tier requires you to provide your own Gemini API Key. Sponsors get free access."
                 )
-    elif provider == "novita" and api_key:
-        logger.info(f"User {user.id} is using their own Novita API key.")
+
+    # Update the key in the request arguments for the generator task
+    api_key = real_api_key
 
     if not files and not text:
         raise HTTPException(status_code=400, detail="Either file or text must be provided")

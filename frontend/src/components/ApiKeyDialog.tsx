@@ -10,155 +10,181 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ExternalLink, Key, AlertCircle, ShieldCheck } from "lucide-react";
+import { ExternalLink, Key, AlertCircle, ShieldCheck, Check, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface ApiKeyDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (apiKey: string) => void;
-  provider: string;
+  onKeysUpdate: (keys: Record<string, string>) => void;
+  defaultProvider?: string;
   isByokRequired?: boolean;
 }
 
-export function ApiKeyDialog({ open, onClose, onSubmit, provider, isByokRequired }: ApiKeyDialogProps) {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("mesh_user_api_key") || "");
+const PROVIDERS = [
+    { 
+        id: "gemini", 
+        name: "Google Gemini", 
+        desc: "Powers Gemini Pro & Flash models", 
+        link: "https://aistudio.google.com/app/apikey",
+        prefix: "AIza"
+    },
+    { 
+        id: "novita", 
+        name: "Novita AI", 
+        desc: "Powers Llama 3.3, Qwen 2.5, & Mistral", 
+        link: "https://novita.ai",
+        prefix: "" 
+    },
+    { 
+        id: "openai", 
+        name: "OpenAI", 
+        desc: "Powers GPT-4o models", 
+        link: "https://platform.openai.com/api-keys",
+        prefix: "sk-" 
+    },
+    { 
+        id: "anthropic", 
+        name: "Anthropic", 
+        desc: "Powers Claude 3.5 Sonnet", 
+        link: "https://console.anthropic.com/settings/keys",
+        prefix: "sk-ant" 
+    }
+];
+
+export function ApiKeyDialog({ open, onClose, onKeysUpdate, defaultProvider = "gemini", isByokRequired }: ApiKeyDialogProps) {
+  const [keys, setKeys] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<string>(defaultProvider);
 
   useEffect(() => {
     if (open) {
-      setApiKey(localStorage.getItem("mesh_user_api_key") || "");
+      // Load all keys
+      try {
+          const stored = localStorage.getItem("mesh_api_keys");
+          if (stored) {
+              setKeys(JSON.parse(stored));
+          }
+      } catch (e) {
+          console.error("Failed to parse api keys", e);
+      }
+      setActiveTab(defaultProvider);
     }
-  }, [open]);
+  }, [open, defaultProvider]);
 
-  const handleSubmit = () => {
-    if (apiKey.trim()) {
-      onSubmit(apiKey.trim());
-    }
+  const handleSave = () => {
+    localStorage.setItem("mesh_api_keys", JSON.stringify(keys));
+    onKeysUpdate(keys);
+    onClose();
   };
 
-  const getInstructions = () => {
-    switch (provider.toLowerCase()) {
-      case "gemini":
-        return {
-          title: "Get your free Gemini API key",
-          steps: [
-            "Visit Google AI Studio",
-            "Sign in with your Google account",
-            "Click 'Get API Key' and create a new key",
-            "Copy and paste it below"
-          ],
-          link: "https://aistudio.google.com/app/apikey"
-        };
-      case "openai":
-        return {
-          title: "Get your OpenAI API key",
-          steps: [
-            "Visit OpenAI Platform",
-            "Sign in or create an account",
-            "Navigate to API Keys section",
-            "Create a new secret key and copy it"
-          ],
-          link: "https://platform.openai.com/api-keys"
-        };
-      default:
-        return {
-          title: "Get your API key",
-          steps: ["Visit the provider's website", "Create an API key"],
-          link: "#"
-        };
-    }
+  const updateKey = (provider: string, value: string) => {
+      setKeys(prev => ({ ...prev, [provider]: value.trim() }));
   };
 
-  const instructions = getInstructions();
+  const currentProviderInfo = PROVIDERS.find(p => p.id === activeTab) || PROVIDERS[0];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] border-2 border-primary/20">
+      <DialogContent className="sm:max-w-[600px] border-2 border-primary/20 max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-            {isByokRequired ? (
-               <>
-                 <ShieldCheck className="w-5 h-5 text-primary" />
-                 API Key Required
-               </>
-            ) : (
-              <>
-                <AlertCircle className="w-5 h-5 text-orange-500" />
-                API Limit Reached
-              </>
-            )}
+            <Key className="w-5 h-5 text-primary" />
+            API Key Management
           </DialogTitle>
           <DialogDescription className="text-base">
-            {isByokRequired 
-              ? `This service is currently in BYOK (Bring Your Own Key) mode for ${provider}.`
-              : `Our free ${provider} API quota is temporarily exhausted due to high demand.`}
-            {" "}Please provide your own API key to continue.
+            Configure your own API keys to bypass rate limits and access premium models without restrictions.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-3 bg-muted/40 p-4 rounded-xl border border-border">
-            <Label className="text-sm font-black uppercase tracking-wider text-muted-foreground">{instructions.title}</Label>
-            <ol className="text-sm text-foreground/80 space-y-2 list-decimal list-inside font-medium">
-              {instructions.steps.map((step, i) => (
-                <li key={i}>{step}</li>
-              ))}
-            </ol>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full mt-2 font-bold border-primary/30 hover:bg-primary/10 text-primary"
-              onClick={() => window.open(instructions.link, "_blank")}
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Open {provider} Dashboard
-            </Button>
-          </div>
+        <div className="flex flex-1 overflow-hidden gap-6 py-4">
+            {/* Sidebar */}
+            <div className="w-1/3 flex flex-col gap-1 border-r pr-4">
+                {PROVIDERS.map(p => (
+                    <button
+                        key={p.id}
+                        onClick={() => setActiveTab(p.id)}
+                        className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex justify-between items-center ${
+                            activeTab === p.id 
+                                ? "bg-primary/10 text-primary font-bold" 
+                                : "hover:bg-muted text-foreground/70"
+                        }`}
+                    >
+                        {p.name}
+                        {keys[p.id] && <Check className="w-3 h-3 text-green-500" />}
+                    </button>
+                ))}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="api-key" className="flex items-center gap-2 font-bold">
-              <Key className="w-4 h-4 text-primary" />
-              Your {provider} API Key
-            </Label>
-            <Input
-              id="api-key"
-              type="password"
-              placeholder={`PASTE KEY HERE (starts with ${provider === "gemini" ? "AIzaSy..." : "sk-..."})`}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              className="font-mono text-sm border-2 border-foreground/20 focus:border-primary"
-            />
-            <p className="text-[10px] text-muted-foreground leading-tight">
-              Your API key is saved locally in your browser. It is sent directly to the server for processing and is NEVER stored in our database.
-            </p>
-          </div>
+            {/* Content */}
+            <div className="flex-1 space-y-4 overflow-y-auto pr-2">
+                <div className="space-y-4">
+                    <div className="bg-muted/40 p-4 rounded-xl border border-border">
+                        <div className="flex items-center justify-between mb-2">
+                            <Label className="text-base font-bold">{currentProviderInfo.name}</Label>
+                            {keys[activeTab] ? (
+                                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Configured</Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-muted-foreground">Not Set</Badge>
+                            )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-4">
+                            {currentProviderInfo.desc}
+                        </p>
+                        
+                        <div className="space-y-3">
+                             <div className="relative">
+                                <Input
+                                    type="password"
+                                    placeholder={`Paste ${currentProviderInfo.name} API Key`}
+                                    value={keys[activeTab] || ""}
+                                    onChange={(e) => updateKey(activeTab, e.target.value)}
+                                    className="font-mono text-sm pr-10"
+                                />
+                                {keys[activeTab] && (
+                                    <div className="absolute right-3 top-2.5 text-green-500">
+                                        <Check className="w-4 h-4" />
+                                    </div>
+                                )}
+                             </div>
+                             
+                             <div className="flex justify-between items-center">
+                                <a 
+                                    href={currentProviderInfo.link} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="text-xs flex items-center gap-1 text-primary hover:underline font-medium"
+                                >
+                                    Get Key <ExternalLink className="w-3 h-3" />
+                                </a>
+                                {keys[activeTab] && (
+                                    <button 
+                                        onClick={() => updateKey(activeTab, "")}
+                                        className="text-xs text-red-500 hover:underline"
+                                    >
+                                        Clear Key
+                                    </button>
+                                )}
+                             </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 items-start p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg">
+                        <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                        <p className="text-xs text-muted-foreground">
+                            Keys are stored <strong>locally in your browser</strong>. They are sent to our server only when you generate content and are never saved in our database.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
-          <div className="flex-1 flex justify-start">
-            {localStorage.getItem("mesh_user_api_key") && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  localStorage.removeItem("mesh_user_api_key");
-                  onSubmit(""); // Use empty key to signal clearing
-                  onClose();
-                }} 
-                className="text-red-500 hover:text-red-600 hover:bg-red-50 font-bold px-2"
-              >
-                Clear Stored Key
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose} className="font-bold">
-                Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={!apiKey.trim()} className="font-bold shadow-[2px_2px_0_0_hsl(var(--foreground))] border-2 border-foreground hover:translate-y-[1px] hover:shadow-none transition-all">
-                Continue with My Key
-            </Button>
-          </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="ghost" onClick={onClose} className="font-bold">
+              Cancel
+          </Button>
+          <Button onClick={handleSave} className="font-bold shadow-[2px_2px_0_0_hsl(var(--foreground))] border-2 border-foreground hover:translate-y-[1px] hover:shadow-none transition-all">
+              Save Configuration
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
