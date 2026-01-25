@@ -494,6 +494,7 @@ async def submit_job(
     # Read Input
     input_text = ""
     image_files = []  # Store image file paths for vision models
+    total_pages = 0
     
     try:
         if text:
@@ -515,6 +516,7 @@ async def submit_job(
                         "filename": file.filename
                     })
                     logger.info(f"Image file detected: {file.filename}")
+                    total_pages += 1 # Count each image as a page equivalent
                     continue
                 
                 # Process text-based files
@@ -523,6 +525,9 @@ async def submit_job(
                      try:
                          # Use strict=False to be more lenient with malformed PDFs
                          reader = PdfReader(tmp_path, strict=False)
+                         pages_count = len(reader.pages)
+                         total_pages += pages_count
+                         
                          for page in reader.pages:
                              extract = page.extract_text()
                              if extract:
@@ -535,6 +540,8 @@ async def submit_job(
                     try:
                         with open(tmp_path, "r", encoding="utf-8") as f:
                             file_text = f.read()
+                        # Estimate pages for text files (approx 3000 chars per page)
+                        total_pages += (len(file_text) // 3000) + 1
                     except:
                          # Fallback for docx or other binary formats if added later, 
                          # or encoding issues. For now, strict utf-8 for txt
@@ -552,6 +559,20 @@ async def submit_job(
     # Validate input: either text or images must be provided
     if not input_text.strip() and not image_files:
         raise HTTPException(status_code=400, detail="No input provided. Please provide text or upload files.")
+    
+    # 4. Enforce "Focus Area" for Large Documents (> 50 pages)
+    # This prevents sending huge amounts of noise to the LLM and wasting tokens/time.
+    PAGE_THRESHOLD = 50
+    if total_pages > PAGE_THRESHOLD and not (custom_instructions and len(custom_instructions.strip()) > 10):
+        logger.warning(f"Large document detected ({total_pages} pages) without specific focus area.")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"🚨 This is a large document ({total_pages} pages). \n\n"
+                "To ensure high-quality flashcards and save resources, a **Focus Area** is mandatory for documents over 50 pages.\n\n"
+                "Please tell us exactly which part, chapter, or topic you want to create the deck from in the 'Custom Instructions' field."
+            )
+        )
     
     # Prepare job data for queue
     config_data = {

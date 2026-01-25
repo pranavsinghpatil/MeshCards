@@ -404,32 +404,36 @@ const Studio = () => {
           }
           
           if (data.status === 'failed') {
-              const error = data.error || "Generation failed";
-              // Check if it's a quota error
-              if (error.toLowerCase().includes('quota') || error.toLowerCase().includes('2/2')) {
-                  throw new Error(`📊 ${error}\n\nMeshCards is FREE with a 2-deck daily limit. This helps us keep it accessible to everyone!`);
-              }
-              // Check if it's a rate limit error
-              if (error.toLowerCase().includes('rate limit') || error.toLowerCase().includes('429')) {
-                  throw new Error(`⚠️ ${error}\n\nToo many students are generating decks right now. Please wait 1-2 minutes and try again.`);
+              const error = data.error || "Unknown Error";
+              const errorLower = error.toLowerCase();
+
+              // 🚫 Quota/Limit Errors
+              if (errorLower.includes('quota') || errorLower.includes('limit exceeded') || errorLower.includes('2/2')) {
+                  throw new Error(`QUOTA_LIMIT|${error}|Daily Limit Reached. MeshCards is community-funded and free, so we have a small daily limit to keep things running!`);
               }
               
-              // Check for PDF/Input errors (User Error)
-              if (error.includes('Invalid Elementary Object') || error.includes('PDF')) {
-                  throw new Error(`📄 PDF Error: The file seems corrupted or encrypted. Please try a different PDF or copy-paste the text instead.`);
+              // 🔑 API Key Errors
+              if (errorLower.includes('api key') || errorLower.includes('invalid') || errorLower.includes('401') || errorLower.includes('403')) {
+                  throw new Error(`AUTH_ERROR|${error}|Your API key seems invalid or restricted. Please double-check it in the settings.`);
               }
               
-              if (error.includes('No cards generated') || error.includes('No input')) {
-                  throw new Error(`📝 No Content Found: We couldn't extract enough text to generate flashcards. Please try adding more text or a clearer document.`);
+              // 📄 Document/Content Errors
+              if (errorLower.includes('pdf') || errorLower.includes('corrupt') || errorLower.includes('no content')) {
+                  throw new Error(`CONTENT_ERROR|${error}|We couldn't read your file correctly. Make sure it's not password-protected and contains actual text.`);
               }
-              
-              // Generic error (Server Error)
-              throw new Error(error);
+
+              // ⚠️ LLM Errors
+              if (errorLower.includes('hallucin') || errorLower.includes('safety') || errorLower.includes('refused')) {
+                  throw new Error(`AI_SAFETY|${error}|The model refused to process this content due to safety filters or complexity.`);
+              }
+
+              // Fallback for everything else
+              throw new Error(`SERVER_FAIL|${error}|The engine encountered an unexpected hiccup. Please try again in a few seconds.`);
           }
           
           attempts++;
       }
-      throw new Error("Timeout waiting for generation");
+      throw new Error("TIMEOUT|The task took too long.|Please try a smaller document or refresh the page.");
   };
 
   const monitorJob = async (jobId: string, name: string) => {
@@ -481,24 +485,34 @@ const Studio = () => {
 
       } catch (error: any) {
           // Don't show error toast if it's just prompting for API key
-          if (error.message === "API_LIMIT_PROMPT") {
-              // Keep generating state, wait for user to provide key
-              return;
-          }
+          if (error.message === "API_LIMIT_PROMPT") return;
           
-          let title = "Error";
-          let description = error.message || "Something went wrong";
-          if (description.includes("| Title:")) {
-              const parts = description.split("| Title:");
-              if (parts.length === 2) {
-                  const codePart = parts[0].split("Error Code:");
-                  if (codePart.length === 2) {
-                      title = parts[1].trim();
-                      description = `Code: ${codePart[1].trim()}`;
-                  }
+          const parts = error.message.split('|');
+          let title = "Generation Error";
+          let description = error.message;
+
+          if (parts.length === 3) {
+              // Priority 1: Our custom structured error
+              title = `${parts[0].replace('_', ' ')} (${parts[1]})`.replace(/\w\S*/g, (txt: any) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+              description = parts[2];
+              console.error(`ERROR CODE: ${parts[0]} | DETAIL: ${parts[1]}`);
+          } else {
+              // Priority 2: Generic error parsing (e.g. from backend/main.py log_error_to_github)
+              if (description.includes("| Title:")) {
+                  const bits = description.split("| Title:");
+                  title = bits[1].trim();
+                  description = `Tech Info: ${bits[0].trim()}`;
+              } else {
+                  title = "Backend Interaction Failed"; 
               }
           }
-          toast({ title: title, description: description, variant: "destructive" });
+
+          toast({ 
+              title: title, 
+              description: description, 
+              variant: "destructive",
+              duration: 6000
+          });
           setIsGenerating(false);
       } finally {
           // Don't clear these if waiting for API key
@@ -515,8 +529,14 @@ const Studio = () => {
         return;
     }
 
-    if (!text && uploadedFiles.length === 0) {
-      toast({ title: "No content", description: "Please paste text or upload a file first.", variant: "destructive" });
+    if (!text.trim()) {
+      toast({ 
+          title: "Prompt Required", 
+          description: uploadedFiles.length > 0 
+            ? "Please provide a Focus Area or instructions in the prompt area. Guidance is mandatory for large files." 
+            : "Please paste your content or instructions in the prompt area.", 
+          variant: "destructive" 
+      });
       return;
     }
     
@@ -549,6 +569,10 @@ const Studio = () => {
         payload.append("max_cards", cardCount.toString());
         payload.append("difficulty", difficulty);
         payload.append("style", cardStyle);
+        // If files are present, 'text' acts as custom instructions
+        if (uploadedFiles.length > 0) {
+            payload.append("custom_instructions", text);
+        }
         
         // Add user API key if provided
         if (activeKey) {
@@ -767,23 +791,42 @@ const Studio = () => {
                     />
                     </div>
 
-                    <div className="flex items-center gap-3 mb-4">
-                    <div className="flex-1 h-px bg-border" />
-                    <span className="text-xs font-medium text-muted-foreground px-2">Prompt</span>
-                    <div className="flex-1 h-px bg-border" />
+                    <div className="flex items-center justify-between mb-4">
+                        <label className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                             <Sparkles className="w-4 h-4 text-primary" />
+                             {uploadedFiles.length > 0 ? "Focus Area / Instructions" : "Source Content / Prompt"}
+                             <Badge className="bg-primary text-primary-foreground text-[10px] ml-2">Mandatory</Badge>
+                        </label>
+                        {uploadedFiles.some(f => f.size > 2 * 1024 * 1024) && (
+                            <Badge variant="destructive" className="animate-pulse shadow-sm">Large File: Guide Required</Badge>
+                        )}
                     </div>
 
-                    <div className="relative flex-1">
+                    <div className="relative group flex-1">
                     <textarea
                         value={text}
                         onChange={(e) => setText(e.target.value)}
-                        placeholder="Paste your content, notes, or specific instructions for the AI here..."
-                        className="w-full h-[500px] resize-none rounded-xl border-2 border-foreground/30 bg-background p-4 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-mono"
+                        placeholder={uploadedFiles.length > 0 
+                            ? "Example: 'Focus on Chapter 4 definitions', 'Only extract formulas', etc." 
+                            : "Paste your content, notes, or specific instructions for the AI here..."
+                        }
+                        className={`w-full h-[500px] resize-none rounded-xl border-2 p-4 text-sm focus:outline-none transition-all font-mono
+                            ${uploadedFiles.length > 0 && !text.trim() ? "border-primary ring-2 ring-primary/10" : "border-foreground/30 focus:border-primary focus:ring-2 focus:ring-primary/20"}
+                        `}
                     />
                     <span className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
                         {text.length} characters
                     </span>
                     </div>
+
+                    {uploadedFiles.length > 0 && !text.trim() && (
+                        <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-3 animate-in slide-in-from-top-2">
+                            <Zap className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                            <p className="text-[10px] text-primary font-bold uppercase tracking-widest leading-relaxed">
+                                Please tell the AI exactly what part of your {uploadedFiles.length} file(s) to focus on.
+                            </p>
+                        </div>
+                    )}
                 </div>
                 </div>
 
@@ -1068,7 +1111,7 @@ const Studio = () => {
                     
                     <Button 
                         onClick={handleGenerate} 
-                        disabled={isGenerating || !hasContent || (modelTab === 'high_logic' && (!isSponsor || !aiModel))} 
+                        disabled={isGenerating || !text.trim() || (modelTab === 'high_logic' && (!isSponsor || !aiModel))} 
                         className={`w-full py-6 rounded-xl font-bold transition-all shadow-[4px_4px_0_0_#000] border-2 border-foreground hover:translate-y-[2px] hover:shadow-none disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none
                             ${isGenerating ? "opacity-90 cursor-wait" : "bg-primary text-primary-foreground hover:bg-primary/90"}
                         `}
