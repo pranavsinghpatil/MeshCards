@@ -10,6 +10,7 @@ import Header from "./Header";
 import SimpleFooter from "./SimpleFooter";
 import AdComponent from "./AdComponent";
 import { ApiKeyDialog } from "./ApiKeyDialog";
+import ShinyText from "./ui/ShinyText";
 
 const LoadingOverlay = ({ statusMessage }: { statusMessage?: string }) => {
     const [text, setText] = useState("Initializing AI...");
@@ -121,16 +122,26 @@ const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId:
                 {/* Guide Section */}
                 <div 
                     onClick={() => window.open('/guide', '_blank')}
-                    className="group relative cursor-pointer border px-4 py-3 bg-muted/20 hover:bg-primary/5 hover:border-primary/30 transition-all rounded-xl flex items-center gap-4"
+                    className="group relative cursor-pointer border-2 border-primary/10 px-5 py-5 bg-gradient-to-br from-primary/5 via-transparent to-transparent hover:from-primary/10 hover:border-primary/20 transition-all rounded-2xl flex items-center gap-5 shadow-sm hover:shadow-md"
                 >
-                    <div className="bg-primary/10 p-2 rounded-lg text-primary">
+                    <div className="bg-primary text-primary-foreground p-3 rounded-xl shadow-[4px_4px_0_0_hsl(var(--foreground))] group-hover:shadow-none group-hover:translate-x-1 group-hover:translate-y-1 transition-all">
                         <BookOpen className="w-5 h-5" />
                     </div>
-                    <div className="flex-1 text-left">
-                         <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">How to import into Anki?</p>
-                         <p className="text-xs text-muted-foreground">Don't know how to import content into your flashcard app? Click for step-by-step guide</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                     <div className="flex-1 text-left">
+                          <p className="text-base font-black text-foreground group-hover:text-primary transition-colors leading-tight mb-1">How to import into Anki?</p>
+                          <ShinyText 
+                            text="Don't know how to import content into your flashcard app? Click for step-by-step guide" 
+                            disabled={false}
+                            speed={5}
+                            spread={120}
+                            color="hsl(var(--muted-foreground))"
+                            shineColor="hsl(var(--primary))"
+                            className="text-xs font-semibold leading-relaxed"
+                          />
+                     </div>
+                     <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                        <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                     </div>
                 </div>
             </div>
 

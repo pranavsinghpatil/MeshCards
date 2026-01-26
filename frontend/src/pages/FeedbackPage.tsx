@@ -78,11 +78,15 @@ export default function FeedbackPage() {
               <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
                 We're Listening
               </span>
+              <span> </span>
+              <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+                I work on this project on weekends ☺️
+              </span>
               <h1 className="text-3xl md:text-5xl font-bold mb-4">
                 Share Your <span className="text-primary">Feedback</span>
               </h1>
               <p className="text-muted-foreground max-w-xl mx-auto text-lg">
-                MeshCards is built for learners like you. Your feedback shapes the future of this tool.
+                MeshCards is built for learners like you. Your feedback shapes the future of this tool. MeshCards is not affiliated with Anki or any company.
               </p>
             </div>
 
