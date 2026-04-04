@@ -4,11 +4,11 @@ FROM python:3.11-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    ENV=production
+    ENV=production \
+    PYTHONPATH=/app
 
 # Set work directory
-# We set it to / so that "backend" directory is within the path
-WORKDIR /
+WORKDIR /app
 
 # Install system dependencies for PIL/Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,13 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
-# Looking for requirements.txt in the backend/ folder since this Dockerfile is in backend/
-COPY backend/requirements.txt ./requirements.txt
+# Install python dependencies from root
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install slowapi uvicorn gunicorn pillow
 
-# Copy the entire backend folder into a 'backend' directory
+# Copy the entire backend folder into a 'backend' directory inside /app
+# This ensures that "from backend.core..." imports work correctly
 COPY backend/ ./backend/
 
 # Create decks directory
@@ -32,6 +32,5 @@ RUN mkdir -p backend/decks
 # Expose port
 EXPOSE 8000
 
-# Run the application
-# We call it as backend.main so the package structure is preserved
+# Run the application using the correct module path
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
