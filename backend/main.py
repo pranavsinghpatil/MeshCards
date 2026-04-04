@@ -63,6 +63,18 @@ app.add_middleware(
 # In-Memory Job Store (Note: Doesn't persist across restarts or serverless instances)
 jobs: Dict[str, dict] = {}
 
+# Track last activity for Render Keep-Alive
+last_activity_timer = {"time": time.time()}
+
+@app.middleware("http")
+async def track_activity(request: Request, call_next):
+    # Don't count the health check requests as "real activity"
+    if request.url.path not in ["/health", "/kaithheathcheck", "/kaithhealthcheck"]:
+        last_activity_timer["time"] = time.time()
+    
+    response = await call_next(request)
+    return response
+
 # Status Callback for Job Queue
 def update_job_status(job_id: str, status: str, error: str = None):
     if job_id in jobs:
@@ -82,7 +94,38 @@ async def startup_event():
     # Start the global jobs dict and file cleanup task
     asyncio.create_task(cleanup_jobs_store_task())
     
-    logger.info("Background cleanup tasks started")
+    # Start Render keep-alive task
+    asyncio.create_task(self_ping_keepalive_task())
+    
+    logger.info("Background cleanup & keep-alive tasks started")
+
+async def self_ping_keepalive_task():
+    """Pings the app's own public URL every 13 minutes IF there has been no real activity."""
+    while True:
+        await asyncio.sleep(60)  # Check every minute
+        
+        # Look for the Render URL environment variable (Render sets this automatically)
+        # e.g., https://my-app.onrender.com
+        public_url = os.environ.get("RENDER_EXTERNAL_URL")
+        
+        if public_url:
+            now = time.time()
+            time_since_last_activity = now - last_activity_timer["time"]
+            
+            # If idle for 13 minutes (780 seconds), ping itself
+            if time_since_last_activity >= 13 * 60:
+                try:
+                    health_url = f"{public_url.rstrip('/')}/health"
+                    logger.info(f"Keep-alive: No activity for 13 mins. Pinging {health_url}")
+                    
+                    loop = asyncio.get_event_loop()
+                    req = urllib.request.Request(health_url, headers={"User-Agent": "Render-Keep-Alive/1.0"})
+                    await loop.run_in_executor(None, urllib.request.urlopen, req)
+                    
+                    # Reset timer so it waits another 13 mins before pinging again
+                    last_activity_timer["time"] = time.time()
+                except Exception as e:
+                    logger.error(f"Keep-alive self-ping failed: {e}")
 
 async def cleanup_jobs_store_task():
     """Periodically cleans up the in-memory jobs dict and temp files"""
