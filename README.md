@@ -18,32 +18,32 @@
 
 ## ✨ Features
 
-### 🤖 AI-Powered Generation
+### AI-Powered Generation
 - **Multiple AI Models**: Gemini 3 Pro, Gemini 3 Flash, Gemini 2.5 Series (Pro/Flash/Lite)
 - **Latest Tech**: Powered by Gemini 2.0 Flash and 1.5 Pro
 - **Smart Extraction**: Automatically identifies key concepts and creates Q&A pairs
 - **LaTeX Support**: Perfect for math, science, and technical subjects
 - **Multimodal**: Generate flashcards from text, PDFs, and images
 
-### 📚 Content Sources
+### Content Sources
 - 📝 **Text Input**: Paste notes, articles, or study materials
 - 📄 **PDF Upload**: Extract content from textbooks and papers
 - 🖼️ **Image Upload**: Generate from diagrams, charts, and screenshots
 - 📖 **Multiple Files**: Combine multiple sources in one deck
 
-### 🎨 Customization
+### Customization
 - **Difficulty Levels**: Beginner, Intermediate, Advanced
 - **Card Styles**: Q&A, Cloze Deletion, Mixed
 - **Deck Size**: 10-100 cards per generation
 - **Custom Instructions**: Fine-tune generation with specific requirements
 
-### 🔒 User Features
+### User Features
 - **Authentication**: Secure sign-in with Supabase
 - **Daily Quota**: 2 free decks per day (resets at 12 AM IST)
 - **Usage Tracking**: Monitor your daily generation count
 - **Instant Download**: Get `.apkg` files ready for Anki
 
-### 🛡️ Security & Limits
+### Security & Limits
 - **4-Layer Protection**: Frontend validation, authentication, quota system, rate limiting
 - **Privacy First**: No data stored, instant generation and download
 - **API Protection**: Automatic error reporting and abuse prevention
@@ -51,7 +51,7 @@
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.11+
@@ -141,7 +141,7 @@ Upload a diagram → AI analyzes visual content → Creates flashcards about the
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### Tech Stack
 
@@ -226,7 +226,7 @@ VITE_MAINTENANCE_MODE=false
 
 ---
 
-## 📊 Features in Detail
+## Features in Detail
 
 ### Quota System
 - **Limit**: 2 decks per user per day
@@ -254,7 +254,7 @@ VITE_MAINTENANCE_MODE=false
 
 ---
 
-## 🚢 Deployment
+## Deployment
 
 ### Backend (Leapcell)
 
@@ -285,7 +285,7 @@ VITE_MAINTENANCE_MODE=false
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Here's how:
 
@@ -303,7 +303,7 @@ We welcome contributions! Here's how:
 
 ---
 
-## 📝 Documentation
+## Documentation
 
 - [**Mission & Purpose**](docs/01-Overview/mission.md): The problem we solve.
 - [**Quick Start User Guide**](docs/01-Overview/user-guide.md): Get generating in minutes.
@@ -314,7 +314,7 @@ We welcome contributions! Here's how:
 
 ---
 
-## 🐛 Known Issues
+## Known Issues
 
 - LaTeX rendering may fail for complex equations (use `$$` delimiters)
 - Large PDFs (>10MB) may timeout
@@ -324,7 +324,7 @@ See [Issues](https://github.com/pranavsinghpatil/MeshCards/issues) for full list
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 ### Short Term
 - [ ] Add more AI models (Claude, Llama)
@@ -346,24 +346,24 @@ See [Issues](https://github.com/pranavsinghpatil/MeshCards/issues) for full list
 
 ---
 
-## 💖 Support
+## Support
 
 If you find MeshCards helpful, consider supporting the project:
 
-- ⭐ **Star this repository**
-- ☕ **[Buy me a coffee](https://www.buymeacoffee.com/htclodkzgo)**
-- 🐛 **Report bugs** and suggest features
-- 📢 **Share** with fellow students
+-  **Star this repository**
+-  **[Buy me a coffee](https://www.buymeacoffee.com/htclodkzgo)**
+-  **Report bugs** and suggest features
+-  **Share** with fellow students
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Google Gemini** - For powerful AI capabilities
 - **Anki** - For the amazing spaced repetition system
@@ -374,7 +374,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📧 Contact
+## Contact
 
 **Pranav Singh Patil**
 - Email: talktopranav@cc.cc
@@ -383,7 +383,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📈 Stats
+## Stats
 
 - **Daily Active Users**: Growing!
 - **Decks Generated**: Thousands
