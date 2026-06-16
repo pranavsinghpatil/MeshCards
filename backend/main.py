@@ -890,11 +890,3 @@ if os.path.exists(frontend_dist):
 
 else:
     logger.warning("No frontend found! Run 'npm run build' in frontend/ directory")
-are seen immediately
-        return FileResponse(
-            os.path.join(frontend_dist, "index.html"), 
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
-        )
-
-else:
-    logger.warning("No frontend found! Run 'npm run build' in frontend/ directory")

@@ -19,7 +19,7 @@ class AnkiDeckBuilder:
             templates=[
                 {
                     'name': 'Card 1',
-                    'qfmt': '{{MathJax}}<div style="text-align: center;">{{Question}}</div><br>{{Image}}',
+                    'qfmt': '<div style="text-align: center;">{{Question}}</div><br>{{Image}}',
                     'afmt': '{{FrontSide}}<hr id="answer"><div style="text-align: center;">{{Answer}}</div>',
                 },
             ],
@@ -39,8 +39,8 @@ class AnkiDeckBuilder:
             templates=[
                 {
                     'name': 'Cloze',
-                    'qfmt': '{{MathJax}}{{cloze:Text}}<br>{{Image}}',
-                    'afmt': '{{MathJax}}{{cloze:Text}}<br>{{Image}}<br><hr>{{Extra}}',
+                    'qfmt': '{{cloze:Text}}<br>{{Image}}',
+                    'afmt': '{{cloze:Text}}<br>{{Image}}<br><hr>{{Extra}}',
                 },
             ],
             css='.card { font-family: arial; font-size: 20px; text-align: center; color: black; background-color: white; }\n.cloze { font-weight: bold; color: blue; }'
