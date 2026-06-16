@@ -102,10 +102,9 @@
    ```
 
 5. **Open in Browser**
-   ```
-   http://localhost:5173
-   ```
-
+    ```
+    http://localhost:8080
+    ```
 ---
 
 ## 📖 Usage
@@ -205,7 +204,8 @@ OPENAI_API_KEY=your_openai_key  # Optional
 
 # Supabase (Required)
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_service_role_key
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # Rate Limiting
 RATE_LIMIT_FREE=2/hour

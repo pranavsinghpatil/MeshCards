@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     
     # Supabase (Optional if not using persistence/auth)
     SUPABASE_URL: Optional[str] = None
+    SUPABASE_ANON_KEY: Optional[str] = None
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
+    # Backward-compatible alias. Keep for older env files, but do not expose publicly.
     SUPABASE_KEY: Optional[str] = None
 
     # Feedback Integrations

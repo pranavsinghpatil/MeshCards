@@ -15,10 +15,10 @@ class SupabaseManager:
 
     def _initialize(self):
         url = settings.SUPABASE_URL
-        key = settings.SUPABASE_KEY
+        key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
 
         if not url or not key:
-            logger.warning("Supabase credentials not found. Quotas and Persistence will be disabled.")
+            logger.warning("Supabase service-role credentials not found. Quotas and persistence will be disabled.")
             self.client = None
             return
 

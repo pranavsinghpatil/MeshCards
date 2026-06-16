@@ -87,17 +87,9 @@ job_queue.set_status_callback(update_job_status)
 
 @app.on_event("startup")
 async def startup_event():
-    # Start the job queue cleanup task (removes old completed/failed jobs after 24h)
-    from backend.core.job_queue import cleanup_old_jobs_task
-    asyncio.create_task(cleanup_old_jobs_task())
-    
-    # Start the global jobs dict and file cleanup task
-    asyncio.create_task(cleanup_jobs_store_task())
-    
-    # Start Render keep-alive task
-    asyncio.create_task(self_ping_keepalive_task())
-    
-    logger.info("Background cleanup & keep-alive tasks started")
+    # In Serverless (Vercel), startup tasks are unreliable for long-running loops.
+    # We log initialization and rely on request-time logic or external cron for cleanup.
+    logger.info(f"MeshCards Backend Initialized (ENV: {settings.ENV})")
 
 async def self_ping_keepalive_task():
     """Pings the app's own public URL every 13 minutes IF there has been no real activity."""
@@ -430,7 +422,7 @@ def get_config():
         "env": settings.ENV,
         # Frontend needs Supabase Config for Auth
         "supabase_url": settings.SUPABASE_URL,
-        "supabase_anon_key": settings.SUPABASE_KEY,
+        "supabase_anon_key": settings.SUPABASE_ANON_KEY,
         # Access Control Settings (NEW)
         "novita_access_mode": settings.NOVITA_ACCESS_MODE,
         "gemini_mode": settings.GEMINI_MODE
@@ -869,7 +861,7 @@ cwd = os.getcwd()
 frontend_dist = os.path.join(cwd, "frontend", "dist")
 
 if os.path.exists(frontend_dist):
-    logger.info(f"Mounting React Frontend from {frontend_dist}")
+    # logger.info(f"Mounting React Frontend from {frontend_dist}")
     
     # 1. Mount assets explicitly so they are served correctly
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
@@ -891,6 +883,14 @@ if os.path.exists(frontend_dist):
             return FileResponse(potential_path)
         
         # Disable caching for index.html so updates are seen immediately
+        return FileResponse(
+            os.path.join(frontend_dist, "index.html"), 
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
+
+else:
+    logger.warning("No frontend found! Run 'npm run build' in frontend/ directory")
+are seen immediately
         return FileResponse(
             os.path.join(frontend_dist, "index.html"), 
             headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
