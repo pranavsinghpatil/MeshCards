@@ -436,7 +436,8 @@ def get_config():
         "gemini_mode": settings.GEMINI_MODE
     }
 
-# Health check endpoints for Leapcell
+# Health check endpoints for deployment platforms and direct visits
+@app.get("/")
 @app.get("/kaithheathcheck")
 @app.get("/kaithhealthcheck")
 @app.get("/health")
