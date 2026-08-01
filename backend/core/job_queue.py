@@ -28,6 +28,20 @@ class QueuedJob:
         self.error: Optional[str] = None
         self.position: int = 0
 
+def classify_error_code(error: Optional[str]) -> Optional[str]:
+    if not error:
+        return None
+    e_lower = error.lower()
+    if any(k in e_lower for k in ["quota", "limit exceeded", "2/2", "429"]):
+        return "QUOTA_EXCEEDED"
+    if any(k in e_lower for k in ["api key", "invalid", "401", "403"]):
+        return "AUTH_ERROR"
+    if any(k in e_lower for k in ["pdf", "corrupt", "no content"]):
+        return "CONTENT_ERROR"
+    if any(k in e_lower for k in ["hallucin", "safety", "refused"]):
+        return "AI_SAFETY"
+    return "SERVER_FAIL"
+
 class JobQueue:
     """
     Manages a queue of deck generation jobs to prevent API rate limit issues.
@@ -139,7 +153,8 @@ class JobQueue:
                             "started_at": r_job.get("started_at"),
                             "completed_at": r_job.get("completed_at"),
                             "result": res_val,
-                            "error": r_job.get("error")
+                            "error": r_job.get("error"),
+                            "error_code": classify_error_code(r_job.get("error"))
                         }
                 except Exception:
                     pass
@@ -162,7 +177,8 @@ class JobQueue:
                             "started_at": db_job.get("started_at"),
                             "completed_at": db_job.get("completed_at"),
                             "result": db_job.get("result"),
-                            "error": db_job.get("error")
+                            "error": db_job.get("error"),
+                            "error_code": classify_error_code(db_job.get("error"))
                         }
             except Exception:
                 pass
@@ -182,7 +198,8 @@ class JobQueue:
             "started_at": job.started_at.isoformat() if job.started_at else None,
             "completed_at": job.completed_at.isoformat() if job.completed_at else None,
             "result": job.result,
-            "error": job.error
+            "error": job.error,
+            "error_code": classify_error_code(job.error)
         }
     
     def _get_position(self, job_id: str) -> int:

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks, Request, Header
 # Trigger reload
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Dict, List
@@ -52,6 +52,35 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title=settings.APP_NAME, version="1.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail
+    if isinstance(detail, dict) and "error_code" in detail:
+        error_code = detail["error_code"]
+        error_msg = detail.get("detail") or detail.get("message") or str(detail)
+    else:
+        error_msg = str(detail)
+        detail_lower = error_msg.lower()
+        if exc.status_code == 429 or any(k in detail_lower for k in ["quota", "limit exceeded", "2/2"]):
+            error_code = "QUOTA_EXCEEDED"
+        elif exc.status_code in (401, 403) or any(k in detail_lower for k in ["api key", "auth", "invalid key", "token", "sponsor", "free tier", "frontier engines"]):
+            error_code = "AUTH_ERROR"
+        elif any(k in detail_lower for k in ["pdf", "corrupt", "no content", "file"]):
+            error_code = "CONTENT_ERROR"
+        elif any(k in detail_lower for k in ["safety", "refused"]):
+            error_code = "AI_SAFETY"
+        else:
+            error_code = "SERVER_FAIL"
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": detail,
+            "error": error_msg,
+            "error_code": error_code
+        }
+    )
 
 # Setup CORS
 app.add_middleware(

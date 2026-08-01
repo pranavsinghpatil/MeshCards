@@ -11,179 +11,21 @@ import SimpleFooter from "./SimpleFooter";
 import AdComponent from "./AdComponent";
 import { ApiKeyDialog } from "./ApiKeyDialog";
 import ShinyText from "./ui/ShinyText";
-
-const LoadingOverlay = ({ statusMessage }: { statusMessage?: string }) => {
-    const [text, setText] = useState("Initializing AI...");
-    
-    useEffect(() => {
-        if (statusMessage) {
-            setText(statusMessage);
-            return;
-        }
-
-        const messages = [
-            "Reading your documents...",
-            "Identifying key concepts...",
-            "Generating Question & Answer pairs...",
-            "Verifying accuracy...",
-            "Packaging into .apkg...",
-            "Starting download..."
-        ];
-        let i = 0;
-        const timer = setInterval(() => {
-            setText(messages[i % messages.length]);
-            i++;
-        }, 3000);
-        return () => clearInterval(timer);
-    }, [statusMessage]);
-
-    return (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md rounded-2xl select-none border-2 border-primary/20">
-            <div className="relative mb-8">
-                {/* Glowing Mesh Effect */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-primary via-purple-500 to-pink-500 blur-3xl opacity-30 rounded-full" />
-                
-                {/* Card Animation */}
-                <div className="relative bg-card border-4 border-foreground w-40 h-56 rounded-3xl shadow-[8px_8px_0_0_hsl(var(--foreground))] flex flex-col items-center justify-center gap-5">
-                    <div className="w-24 h-2.5 bg-primary/20 rounded-full" />
-                    <div className="w-20 h-2.5 bg-foreground/10 rounded-full" />
-                    <div className="w-28 h-2.5 bg-foreground/10 rounded-full" />
-                    <div className="w-16 h-2.5 bg-foreground/10 rounded-full" />
-                    
-                    <div className="absolute bottom-8 flex items-center justify-center">
-                         <RefreshCw className="w-8 h-8 text-primary animate-spin relative z-10" />
-                    </div>
-                </div>
-            </div>
-            
-            <h3 className="text-3xl font-black mb-3 tracking-tighter text-foreground">
-                {text}
-            </h3>
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-muted rounded-full border border-border">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Forging your knowledge deck...</p>
-            </div>
-        </div>
-    );
-};
-
-const SuccessView = ({ onReset, jobId, deckName }: { onReset: () => void, jobId: string | null, deckName: string }) => {
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="w-full max-w-3xl mx-auto border-2 border-primary rounded-3xl bg-card shadow-[4px_4px_0_0_hsl(var(--primary))] overflow-hidden">
-            {/* Top Confetti / Header Area */}
-            <div className="bg-primary/5 border-b-2 border-primary/20 p-6 text-center relative overflow-hidden">
-                <div className="relative z-10 flex flex-col items-center">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg">
-                            <Check className="w-6 h-6" strokeWidth={4} />
-                        </div>
-                        <h2 className="text-2xl font-black tracking-tight">Deck Generated!</h2>
-                    </div>
-                    <p className="text-muted-foreground text-base">
-                        Your file <strong className="text-foreground bg-primary/10 px-2 py-0.5 rounded border border-primary/20">{deckName}.apkg</strong> has been downloaded.
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Check your downloads folder.</p>
-                </div>
-            </div>
-
-            <div className="p-6">
-                <div className="grid md:grid-cols-2 gap-4 mb-6">
-                     {/* Primary Action: Download Again (now Outline style) */}
-                    <Button
-                        variant="outline"
-                        size="lg"
-                        className="w-full h-12 text-lg font-bold border-2 border-foreground/20 hover:border-foreground/50 hover:bg-muted hover:text-foreground"
-                        onClick={() => {
-                            if (jobId) {
-                                const link = document.createElement('a');
-                                link.href = getApiUrl(`/download/${jobId}`);
-                                link.click();
-                            } else {
-                                toast({ description: "No job ID available (Test Mode)", duration: 2000 });
-                            }
-                        }}
-                    >
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Again
-                    </Button>
-
-                     {/* Secondary Action: Generate Another (now Primary/Shadow style) */}
-                    <Button
-                        size="lg"
-                        className="w-full h-12 text-lg font-bold border-2 border-foreground shadow-[2px_2px_0_0_hsl(var(--foreground))] hover:translate-y-[1px] hover:shadow-none transition-all"
-                        onClick={onReset}
-                    >
-                         <Sparkles className="mr-2 h-4 w-4" />
-                        Generate Another
-                    </Button>
-                </div>
-
-                {/* Guide Section */}
-                <div 
-                    onClick={() => window.open('/guide', '_blank')}
-                    className="group relative cursor-pointer border-2 border-primary/10 px-5 py-5 bg-gradient-to-br from-primary/5 via-transparent to-transparent hover:from-primary/10 hover:border-primary/20 transition-all rounded-2xl flex items-center gap-5 shadow-sm hover:shadow-md"
-                >
-                    <div className="bg-primary text-primary-foreground p-3 rounded-xl shadow-[4px_4px_0_0_hsl(var(--foreground))] group-hover:shadow-none group-hover:translate-x-1 group-hover:translate-y-1 transition-all">
-                        <BookOpen className="w-5 h-5" />
-                    </div>
-                     <div className="flex-1 text-left">
-                          <p className="text-base font-black text-foreground group-hover:text-primary transition-colors leading-tight mb-1">How to import into Anki?</p>
-                          <ShinyText 
-                            text="Don't know how to import content into your flashcard app? Click for step-by-step guide" 
-                            disabled={false}
-                            speed={5}
-                            spread={120}
-                            color="hsl(var(--muted-foreground))"
-                            shineColor="hsl(var(--primary))"
-                            className="text-xs font-semibold leading-relaxed"
-                          />
-                     </div>
-                     <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                        <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-                     </div>
-                </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="bg-muted/50 border-t-2 border-border p-3 grid grid-cols-2 divide-x divide-border">
-                  <button 
-                    className="flex items-center justify-center gap-2 text-xs font-semibold text-pink-600 hover:text-pink-500 hover:bg-pink-500/5 py-2 transition-all rounded-xl"
-                    onClick={() => window.open('https://buymeacoffee.com/htclodkzgo', '_blank')}
-                  >
-                    <Heart className="w-3 h-3 fill-current" />
-                    Sponsor Project
-                  </button>
-                 <button 
-                    className="group flex items-center justify-center gap-2 text-xs font-bold text-primary hover:text-primary/80 py-1 transition-colors"
-                    onClick={() => window.open('/feedback', '_blank')}
-                 >
-                    <Settings className="w-3 h-3 group-hover:rotate-45 transition-transform duration-500" />
-                    <span className="relative">
-                        Give Feedback
-                        <span className="absolute -bottom-0.5 left-0 w-full h-[1px] bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
-                    </span>
-                 </button>
-            </div>
-        </div>
-        
-        {/* Educational Ad Slot */}
-        {/* Educational Ad Slot */}
-        <div className="w-full max-w-3xl mx-auto mt-8">
-            <AdComponent 
-                dataAdSlot="2267661918" 
-                className="min-h-[100px]"
-            />
-            {/* <p className="text-[10px] text-center text-muted-foreground/40 mt-1">
-                Sponsored
-            </p> */}
-        </div>
-    </div>
-  )
-};
+import { LoadingOverlay } from "./studio/LoadingOverlay";
+import { SuccessView } from "./studio/SuccessView";
 
 const Studio = () => {
   const { session, user, isSponsor } = useAuth();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   const [text, setText] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -364,9 +206,17 @@ const Studio = () => {
       let attempts = 0;
       let lastStatus = '';
 
+      if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       while (attempts < maxRetries) {
+          if (signal.aborted) throw new Error("ABORTED|Polling cancelled|Component unmounted or request aborted.");
           await new Promise(r => setTimeout(r, 2000));
-          const res = await fetch(getApiUrl(`/status/${jobId}`));
+          if (signal.aborted) throw new Error("ABORTED|Polling cancelled|Component unmounted or request aborted.");
+          const res = await fetch(getApiUrl(`/status/${jobId}`), { signal });
           if (!res.ok) throw new Error("Status check failed");
 
           const data = await res.json();
@@ -417,24 +267,25 @@ const Studio = () => {
           if (data.status === 'failed') {
               const error = data.error || "Unknown Error";
               const errorLower = error.toLowerCase();
+              const errorCode = data.error_code;
 
               // 🚫 Quota/Limit Errors
-              if (errorLower.includes('quota') || errorLower.includes('limit exceeded') || errorLower.includes('2/2')) {
+              if (errorCode === 'QUOTA_EXCEEDED' || errorLower.includes('quota') || errorLower.includes('limit exceeded') || errorLower.includes('2/2')) {
                   throw new Error(`QUOTA_LIMIT|${error}|Daily Limit Reached. MeshCards is community-funded and free, so we have a small daily limit to keep things running!`);
               }
               
               // 🔑 API Key Errors
-              if (errorLower.includes('api key') || errorLower.includes('invalid') || errorLower.includes('401') || errorLower.includes('403')) {
+              if (errorCode === 'AUTH_ERROR' || errorLower.includes('api key') || errorLower.includes('invalid') || errorLower.includes('401') || errorLower.includes('403')) {
                   throw new Error(`AUTH_ERROR|${error}|Your API key seems invalid or restricted. Please double-check it in the settings.`);
               }
               
               // 📄 Document/Content Errors
-              if (errorLower.includes('pdf') || errorLower.includes('corrupt') || errorLower.includes('no content')) {
+              if (errorCode === 'CONTENT_ERROR' || errorLower.includes('pdf') || errorLower.includes('corrupt') || errorLower.includes('no content')) {
                   throw new Error(`CONTENT_ERROR|${error}|We couldn't read your file correctly. Make sure it's not password-protected and contains actual text.`);
               }
 
               // ⚠️ LLM Errors
-              if (errorLower.includes('hallucin') || errorLower.includes('safety') || errorLower.includes('refused')) {
+              if (errorCode === 'AI_SAFETY' || errorLower.includes('hallucin') || errorLower.includes('safety') || errorLower.includes('refused')) {
                   throw new Error(`AI_SAFETY|${error}|The model refused to process this content due to safety filters or complexity.`);
               }
 
@@ -496,7 +347,7 @@ const Studio = () => {
 
       } catch (error: any) {
           // Don't show error toast if it's just prompting for API key
-          if (error.message === "API_LIMIT_PROMPT") return;
+          if (error.message === "API_LIMIT_PROMPT" || error.name === 'AbortError' || error.message?.startsWith('ABORTED|')) return;
           
           const parts = error.message.split('|');
           let title = "Generation Error";
