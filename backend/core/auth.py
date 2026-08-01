@@ -144,6 +144,18 @@ def increment_quota(user_id: str):
         # IST timezone for consistency
         today_ist = datetime.now(IST).date().isoformat()
         
+        # 1. Try atomic Postgres RPC increment to prevent race conditions
+        try:
+            supabase.rpc('increment_daily_count', {
+                'p_user_id': user_id,
+                'p_today_ist': today_ist
+            }).execute()
+            return
+        except Exception:
+            # Fallback to read-modify-write if RPC function is not yet migrated
+            pass
+        
+        # 2. Fallback read-modify-write
         res = supabase.table('profiles').select('daily_count, last_reset').eq('id', user_id).execute()
         if res.data:
             profile = res.data[0]

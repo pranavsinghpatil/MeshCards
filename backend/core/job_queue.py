@@ -46,7 +46,56 @@ class JobQueue:
         self.delay_between_jobs = delay_between_jobs  # seconds
         self.lock = asyncio.Lock()
         self.processing = False
+        self.redis = None
+        try:
+            from backend.core.config import settings
+            if settings.REDIS_URL:
+                import redis.asyncio as aioredis
+                self.redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        except Exception as e:
+            print(f"Redis not connected: {e}")
         
+    def _persist_job_status(self, job_id: str, status: str, position: int = 0, error: str = None, user_id: str = None, result: Any = None):
+        """Persist job state to Redis and Supabase (for serverless/multi-instance environments)"""
+        # 1. Persist to Redis if configured
+        if self.redis:
+            try:
+                import json
+                redis_data = {
+                    "job_id": job_id,
+                    "status": status,
+                    "position": str(position)
+                }
+                if error:
+                    redis_data["error"] = str(error)
+                if user_id:
+                    redis_data["user_id"] = str(user_id)
+                if result:
+                    redis_data["result"] = json.dumps(result) if not isinstance(result, str) else result
+                asyncio.create_task(self.redis.hset(f"job:{job_id}", mapping=redis_data))
+            except Exception:
+                pass
+
+        # 2. Persist to Supabase table 'jobs'
+        try:
+            from backend.core.supabase import get_supabase
+            sb = get_supabase()
+            if sb:
+                data = {
+                    "job_id": job_id,
+                    "status": status,
+                    "position": position
+                }
+                if error:
+                    data["error"] = error
+                if user_id:
+                    data["user_id"] = user_id
+                if result:
+                    data["result"] = result
+                sb.table("jobs").upsert(data, on_conflict="job_id").execute()
+        except Exception:
+            pass
+
     async def add_job(self, user_id: str, data: Dict[str, Any]) -> str:
         """Add a new job to the queue"""
         async with self.lock:
@@ -56,6 +105,7 @@ class JobQueue:
             
             self.queue.append(job)
             self.jobs[job_id] = job
+            self._persist_job_status(job_id, "queued", position=job.position, user_id=user_id)
             
             # Start processing if not already running
             if not self.processing:
@@ -67,6 +117,55 @@ class JobQueue:
         """Get current status of a job"""
         job = self.jobs.get(job_id)
         if not job:
+            # 1. Fallback for serverless/multi-instance: check Redis first
+            if self.redis:
+                try:
+                    import json
+                    r_job = await self.redis.hgetall(f"job:{job_id}")
+                    if r_job and "job_id" in r_job:
+                        res_val = None
+                        if "result" in r_job and r_job["result"]:
+                            try:
+                                res_val = json.loads(r_job["result"])
+                            except Exception:
+                                res_val = r_job["result"]
+                        return {
+                            "job_id": r_job["job_id"],
+                            "status": r_job["status"],
+                            "position": int(r_job.get("position", 0)),
+                            "queue_length": 0,
+                            "estimated_wait_seconds": 0,
+                            "created_at": r_job.get("created_at", ""),
+                            "started_at": r_job.get("started_at"),
+                            "completed_at": r_job.get("completed_at"),
+                            "result": res_val,
+                            "error": r_job.get("error")
+                        }
+                except Exception:
+                    pass
+
+            # 2. Fallback for serverless/multi-instance: check Supabase persistent jobs table
+            try:
+                from backend.core.supabase import get_supabase
+                sb = get_supabase()
+                if sb:
+                    res = sb.table("jobs").select("*").eq("job_id", job_id).execute()
+                    if res.data and len(res.data) > 0:
+                        db_job = res.data[0]
+                        return {
+                            "job_id": db_job["job_id"],
+                            "status": db_job["status"],
+                            "position": db_job.get("position", 0),
+                            "queue_length": 0,
+                            "estimated_wait_seconds": 0,
+                            "created_at": db_job.get("created_at", ""),
+                            "started_at": db_job.get("started_at"),
+                            "completed_at": db_job.get("completed_at"),
+                            "result": db_job.get("result"),
+                            "error": db_job.get("error")
+                        }
+            except Exception:
+                pass
             return None
         
         # Update position in queue
@@ -111,6 +210,10 @@ class JobQueue:
         """Set callback for status updates"""
         self.status_callback = callback
 
+    def set_job_handler(self, handler):
+        """Set handler function to execute jobs"""
+        self.job_handler = handler
+
     async def _process_queue(self):
         """Process jobs in the queue one by one"""
         self.processing = True
@@ -126,7 +229,8 @@ class JobQueue:
                     job.status = JobStatus.PROCESSING
                     job.started_at = datetime.now()
                     
-                    # Sync via callback
+                    # Sync via callback and DB
+                    self._persist_job_status(job.job_id, "processing")
                     if hasattr(self, 'status_callback') and self.status_callback:
                         self.status_callback(job.job_id, "processing")
                 
@@ -137,7 +241,8 @@ class JobQueue:
                     job.status = JobStatus.COMPLETED
                     job.completed_at = datetime.now()
                     
-                    # Sync via callback
+                    # Sync via callback and DB
+                    self._persist_job_status(job.job_id, "completed", result=result)
                     if hasattr(self, 'status_callback') and self.status_callback:
                         self.status_callback(job.job_id, "completed")
                         
@@ -147,7 +252,8 @@ class JobQueue:
                     job.completed_at = datetime.now()
                     print(f"Job {job.job_id} failed: {e}")
                     
-                    # Sync via callback
+                    # Sync via callback and DB
+                    self._persist_job_status(job.job_id, "failed", error=str(e))
                     if hasattr(self, 'status_callback') and self.status_callback:
                         self.status_callback(job.job_id, "failed", str(e))
                 
@@ -162,8 +268,8 @@ class JobQueue:
     
     async def _execute_job(self, job: QueuedJob) -> Any:
         """Execute the actual job (deck generation)"""
-        # Import here to avoid circular dependency
-        from backend.main import generate_deck_task
+        if not hasattr(self, 'job_handler') or not self.job_handler:
+            raise RuntimeError("No job_handler registered with JobQueue")
         
         # Extract job data
         text = job.data.get('text', '')
@@ -179,7 +285,7 @@ class JobQueue:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(
             None,
-            generate_deck_task,
+            self.job_handler,
             job.job_id,
             text,
             config_data,

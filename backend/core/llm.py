@@ -10,70 +10,60 @@ import google.generativeai as genai
 from openai import OpenAI
 from anthropic import Anthropic
 
+def repair_json_escapes(s: str) -> str:
+    """
+    Repairs common JSON formatting issues from LLM output without breaking LaTeX math:
+    - Protects LaTeX macros starting with b, f, n, r, t (e.g., \\frac, \\beta, \\theta)
+    - Escapes unescaped backslashes not followed by valid JSON escape sequences
+    - Removes trailing commas before closing brackets/braces
+    """
+    # 1. Protect common LaTeX commands starting with b, f, n, r, t
+    s = re.sub(r'\\([bfnrt][a-zA-Z]+)', r'\\\\\1', s)
+    # 2. Escape any backslash not followed by valid JSON escape chars (" \\ / b f n r t uXXXX)
+    s = re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', s)
+    # 3. Remove trailing commas before closing braces or brackets
+    s = re.sub(r',\s*([\]}])', r'\1', s)
+    return s
+
 def safe_json_loads(text: str) -> Dict[str, Any]:
+    """
+    Safely parses JSON from LLM output, handling markdown code blocks,
+    LaTeX escape characters, and trailing commas without breaking math formatting
+    or swallowing errors.
+    """
+    if not text or not text.strip():
+        raise ValueError("Empty response received from LLM")
+
+    # Strategy 1: Try direct parse
     try:
         return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 2: Extract from markdown code blocks
+    extracted = text
+    md_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if md_match:
+        extracted = md_match.group(1)
+    else:
+        obj_match = re.search(r'(\{.*\})', text, re.DOTALL)
+        if obj_match:
+            extracted = obj_match.group(1)
+
+    try:
+        return json.loads(extracted)
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 3: Repair LaTeX escapes and trailing commas
+    repaired = repair_json_escapes(extracted)
+    try:
+        return json.loads(repaired)
     except json.JSONDecodeError as e:
-        # Attempt to fix common JSON errors
-        print(f"DEBUG: JSON parse failed ({e}), attempting repair...")
-        
-        # Strategy 1: Fix invalid escape sequences
-        # Replace backslashes that aren't part of valid JSON escape sequences
-        fixed_text = text
-        
-        # First, protect valid escape sequences by temporarily replacing them
-        replacements = {
-            '\\"': '___QUOTE___',
-            '\\\\': '___BACKSLASH___',
-            '\\/': '___SLASH___',
-            '\\b': '___BACKSPACE___',
-            '\\f': '___FORMFEED___',
-            '\\n': '___NEWLINE___',
-            '\\r': '___RETURN___',
-            '\\t': '___TAB___',
-        }
-        
-        for old, new in replacements.items():
-            fixed_text = fixed_text.replace(old, new)
-        
-        # Now replace any remaining backslashes with double backslashes
-        fixed_text = fixed_text.replace('\\', '\\\\')
-        
-        # Restore the valid escape sequences
-        for old, new in replacements.items():
-            fixed_text = fixed_text.replace(new, old)
-        
-        try:
-            return json.loads(fixed_text)
-        except json.JSONDecodeError:
-            # Strategy 2: Extract JSON from markdown code blocks
-            match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
-            if match:
-                try:
-                    return json.loads(match.group(1))
-                except:
-                    pass
-            
-            # Strategy 3: Try to find the JSON object directly
-            match = re.search(r'\{.*\}', text, re.DOTALL)
-            if match:
-                try:
-                    json_text = match.group(0)
-                    # Apply the same escape fix
-                    for old, new in replacements.items():
-                        json_text = json_text.replace(old, new)
-                    json_text = json_text.replace('\\', '\\\\')
-                    for old, new in replacements.items():
-                        json_text = json_text.replace(new, old)
-                    return json.loads(json_text)
-                except:
-                    pass
-            
-            # If all else fails, re-raise the original error
-            raise e
+        print(f"DEBUG: JSON parse failed after repair attempts. Original error: {e}")
+        raise ValueError(f"Invalid JSON returned by LLM: {str(e)}") from e
 
 class LLMClient(ABC):
-    @abstractmethod
     @abstractmethod
     def generate_json(self, prompt: Any) -> Dict[str, Any]:
         pass
@@ -188,28 +178,6 @@ class AnthropicClient(LLMClient):
         except json.JSONDecodeError:
              raise ValueError(f"Failed to parse JSON from Anthropic response: {content[:100]}...")
 
-# class OllamaClient(LLMClient):
-#     def __init__(self, model_name: str = "llama3"):
-#         self.model_name = model_name
-# 
-#     def generate_json(self, prompt: str) -> Dict[str, Any]:
-#         response = ollama.chat(model=self.model_name, messages=[
-#           {
-#             'role': 'user',
-#             'content': prompt,
-#           },
-#         ], format='json')
-#         return safe_json_loads(response['message']['content'])
-
-# Prestige models that are mapped to cheap alternatives for cost-saving (Sponsor Only)
-SPOOF_MODELS = {
-    "kimi-k2": "meta-llama/llama-3.1-8b-instruct",
-    "deepseek-v3": "meta-llama/llama-3.1-8b-instruct",
-    "openai/gpt-4o": "meta-llama/llama-3.1-8b-instruct",
-    "anthropic/claude-3-5-sonnet": "meta-llama/llama-3.1-8b-instruct",
-    "anthropic/claude-3-opus": "meta-llama/llama-3.1-8b-instruct",
-}
-
 class FallbackClient(LLMClient):
     """
     Tries multiple clients in order.
@@ -233,30 +201,14 @@ class NovitaClient(LLMClient):
     def __init__(self, api_key: str, model_name: str = "meta-llama/llama-3.1-70b-instruct", groq_key: str = None):
         from openai import OpenAI
         
-        # Apply spoofing if requested model is in prestige list
-        real_model = SPOOF_MODELS.get(model_name, model_name)
-        self.is_spoofed = real_model != model_name
         self.groq_key = groq_key
-        
-        if self.is_spoofed:
-            print(f"DEBUG: Spoofing model {model_name} -> {real_model} (with Groq fallback)")
-            
         self.client = OpenAI(
             api_key=api_key,
             base_url="https://api.novita.ai/v3/openai"
         )
-        self.model_name = real_model
+        self.model_name = model_name
     
     def generate_json(self, prompt: Any) -> Dict[str, Any]:
-        # If spoofed and we have a groq key, try groq first
-        if self.is_spoofed and self.groq_key:
-            try:
-                # Map to a fast groq model for the spoofed logic
-                groq_model = "llama-3.3-70b-versatile" 
-                g_client = GroqClient(api_key=self.groq_key, model_name=groq_model)
-                return g_client.generate_json(prompt)
-            except Exception as e:
-                print(f"DEBUG: Groq pre-fallback failed: {e}")
         
         # Original Novita logic
         from .images import encode_image_to_base64

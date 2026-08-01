@@ -44,3 +44,6 @@ Community
 
 If you build a new deck type or model integration:
 → Add it to the docs so others can learn and build on top of it ✨
+
+task is simple u have to generate deck with unit 1 to 15 in this doc. 
+to help me learn german. include the facts , exercises with answer ofcourse and the checklist items with answers. not to test but to help me learn. dont miss anything. include everything properly and perfect for the master the 1st 15 units

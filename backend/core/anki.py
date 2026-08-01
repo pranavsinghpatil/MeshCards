@@ -75,6 +75,16 @@ class AnkiDeckBuilder:
         print(f"DEBUG: Writing deck with {len(deck.notes)} notes to {output_path}")
         genanki.Package(deck).write_to_file(output_path)
 
+    def _validate_media_path(self, img_path: str) -> str:
+        import tempfile
+        real_path = os.path.realpath(img_path)
+        allowed_dirs = [os.path.realpath(tempfile.gettempdir()), os.path.realpath(os.getcwd())]
+        if not any(os.path.commonpath([real_path, d]) == d for d in allowed_dirs):
+            raise ValueError(f"Security error: Media path '{img_path}' is outside allowed directories.")
+        if not os.path.isfile(real_path):
+            raise FileNotFoundError(f"Media file not found: {img_path}")
+        return real_path
+
     def create_apkg_with_images(self, cards: List[Flashcard], deck_name: str, output_path: str, image_map: dict = None):
         deck_id = random.randrange(1 << 30, 1 << 31)
         deck = genanki.Deck(deck_id, deck_name)
@@ -85,7 +95,7 @@ class AnkiDeckBuilder:
             
             image_val = ""
             if image_map and i in image_map:
-                img_path = image_map[i]
+                img_path = self._validate_media_path(image_map[i])
                 img_filename = os.path.basename(img_path)
                 image_val = f'<img src="{img_filename}">'
                 media_files.append(img_path)

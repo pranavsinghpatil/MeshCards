@@ -4,6 +4,7 @@ import google.generativeai as genai
 from typing import Optional
 import requests
 import base64
+from backend.core.logging import logger
 
 class ImageGenerator(ABC):
     @abstractmethod
@@ -27,11 +28,11 @@ class GeminiImageGenerator(ImageGenerator):
                     response.images[0].save(output_path)
                     return True
             else:
-                print("ImageGenerationModel not found in SDK.")
+                logger.error("ImageGenerationModel not found in SDK.")
                 return False
             return False
         except Exception as e:
-            print(f"Error generating image with Gemini: {e}")
+            logger.error(f"Error generating image with Gemini: {e}")
             return False
 
 class NanoBananaImageGenerator(ImageGenerator):
@@ -50,7 +51,11 @@ class NanoBananaImageGenerator(ImageGenerator):
                 "width": 512,
                 "height": 512
             }
-            response = requests.post(f"{self.api_url}/sdapi/v1/txt2img", json=payload)
+            response = requests.post(
+                f"{self.api_url}/sdapi/v1/txt2img",
+                json=payload,
+                timeout=30
+            )
             if response.status_code == 200:
                 r = response.json()
                 image_data = base64.b64decode(r['images'][0])
@@ -58,10 +63,10 @@ class NanoBananaImageGenerator(ImageGenerator):
                     f.write(image_data)
                 return True
             else:
-                print(f"NanoBanana Error: {response.status_code} - {response.text}")
+                logger.error(f"NanoBanana Error: {response.status_code} - {response.text}")
                 return False
         except Exception as e:
-            print(f"Error generating image with NanoBanana: {e}")
+            logger.error(f"Error generating image with NanoBanana: {e}")
             return False
 
 class MockImageGenerator(ImageGenerator):
@@ -86,5 +91,5 @@ def encode_image_to_base64(image_path: str) -> Optional[str]:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
-        print(f"Error encoding image {image_path}: {e}")
+        logger.error(f"Error encoding image {image_path}: {e}")
         return None

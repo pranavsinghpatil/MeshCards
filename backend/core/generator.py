@@ -1,6 +1,10 @@
+import asyncio
+import threading
 from typing import List
 from .schemas import Flashcard, DeckConfig, GenerationResponse
 from .llm import LLMClient
+from .chunker import estimate_tokens, extract_key_content, chunk_text
+from .logging import logger
 
 class FlashcardGenerator:
     def __init__(self, llm_client: LLMClient):
@@ -10,9 +14,6 @@ class FlashcardGenerator:
         """
         Generate flashcards with automatic optimization and parallel processing.
         """
-        from .chunker import estimate_tokens, extract_key_content, chunk_text
-        from .logging import logger
-        import asyncio
         
         def report(msg):
             if on_progress:
@@ -59,33 +60,56 @@ class FlashcardGenerator:
             
             all_cards = []
             cards_per_chunk = max(2, config.max_cards // len(chunks))
+            semaphore = asyncio.Semaphore(3)  # Limit concurrency to 3 to prevent rate-limit bans
+            failed_chunks = []
             
             async def process_chunk(idx, chunk):
-                # Adjust config for this chunk
-                chunk_config = DeckConfig(
-                    name=config.name,
-                    difficulty=config.difficulty,
-                    style=config.style,
-                    max_cards=cards_per_chunk,
-                    model_name=config.model_name,
-                    custom_instructions=config.custom_instructions
-                )
-                try:
-                    prompt = self._build_prompt(chunk, chunk_config)
-                    # Use to_thread to keep LLM calls from blocking the event loop
-                    response_json = await asyncio.to_thread(self.llm_client.generate_json, prompt)
-                    chunk_res = GenerationResponse(**response_json)
-                    return chunk_res.cards
-                except Exception as e:
-                    logger.error(f"Chunk {idx+1} failed: {e}")
-                    return []
+                async with semaphore:
+                    # Adjust config for this chunk
+                    chunk_config = DeckConfig(
+                        name=config.name,
+                        difficulty=config.difficulty,
+                        style=config.style,
+                        max_cards=cards_per_chunk,
+                        model_name=config.model_name,
+                        custom_instructions=config.custom_instructions
+                    )
+                    for attempt in range(2):
+                        try:
+                            prompt = self._build_prompt(chunk, chunk_config)
+                            # Use to_thread to keep LLM calls from blocking the event loop
+                            response_json = await asyncio.to_thread(self.llm_client.generate_json, prompt)
+                            chunk_res = GenerationResponse(**response_json)
+                            return chunk_res.cards
+                        except Exception as e:
+                            if attempt == 0:
+                                logger.warning(f"Chunk {idx+1} failed on attempt 1 ({e}), retrying...")
+                                await asyncio.sleep(2)
+                            else:
+                                logger.error(f"Chunk {idx+1} failed on attempt 2: {e}")
+                                failed_chunks.append(idx + 1)
+                                return [
+                                    Flashcard(
+                                        question=f"⚠️ Notice: Section {idx+1} of your document could not be processed",
+                                        answer=f"An error occurred while generating flashcards for section {idx+1} ({str(e)}). Please check this section or retry.",
+                                        category="System Notice"
+                                    )
+                                ]
 
-            # Process all chunks concurrently
+            # Process all chunks concurrently with bounded concurrency
             tasks = [process_chunk(i, chunk) for i, chunk in enumerate(chunks)]
             results = await asyncio.gather(*tasks)
             
             for chunk_cards in results:
                 all_cards.extend(chunk_cards)
+            
+            if failed_chunks and len(failed_chunks) < len(chunks):
+                report(f"Warning: {len(failed_chunks)} of {len(chunks)} document sections failed to generate.")
+            
+            if not all_cards:
+                raise RuntimeError(
+                    f"All {len(chunks)} document chunks failed during generation. Please check your API key and rate limits."
+                )
             
             return all_cards[:config.max_cards]
 
@@ -94,9 +118,6 @@ class FlashcardGenerator:
         Synchronous wrapper for generate_flashcards_async.
         This allows it to be called from the existing thread-based job executor.
         """
-        import asyncio
-        import threading
-        
         try:
             # Try to get existing loop
             loop = asyncio.get_event_loop()

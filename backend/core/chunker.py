@@ -5,12 +5,22 @@ Optimized for minimal API costs
 import re
 from typing import List, Tuple
 
-def estimate_tokens(text: str) -> int:
+def estimate_tokens(text: str, model: str = "gpt-4o") -> int:
     """
-    Estimate token count for text
-    Rule of thumb: 1 token ≈ 4 characters
+    Accurately count token count for text using tiktoken.
+    Falls back to a safe len(text) // 3 if tiktoken is unavailable.
     """
-    return len(text) // 4
+    if not text:
+        return 0
+    try:
+        import tiktoken
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            encoding = tiktoken.get_encoding("cl100k_base")
+        return len(encoding.encode(text, disallowed_special=()))
+    except Exception:
+        return max(1, len(text) // 3)
 
 def extract_key_content(text: str, max_tokens: int = 25000) -> str:
     """
@@ -19,64 +29,59 @@ def extract_key_content(text: str, max_tokens: int = 25000) -> str:
     """
     if not text:
         return ""
+    
+    # If document already fits within token limit, do not truncate or modify it
+    char_limit = max_tokens * 4
+    if len(text) <= char_limit:
+        return text
         
-    # Find definitions
+    # Multilingual-safe definition extraction (English, Romance/Germanic languages, symbols)
     definitions = re.findall(
-        r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is|are|means|refers to|defined as|consists of)\s+([^.!?]+[.!?])',
+        r'([A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+(?:\s+[A-Z\u00C0-\u024F][a-z\u00C0-\u024F]+)*)\s+(?:is|are|means|refers to|defined as|consists of|es|est|ist|son|\:|\-|\u2013|\u2014)\s+([^.!?\n]+[.!?])',
         text,
         re.MULTILINE
     )
     
-    # Find list structures
-    bullet_points = re.findall(r'^[•\-\*]\s*(.+)$', text, re.MULTILINE)
-    numbered_points = re.findall(r'^\d+\.\s+(.+)$', text, re.MULTILINE)
+    # Universal list/bullet structures
+    bullet_points = re.findall(r'^[•\-\*\+\u2022\u2023\u25E6\u2043\u2219]\s*(.+)$', text, re.MULTILINE)
+    numbered_points = re.findall(r'^\d+[\.\)]\s+(.+)$', text, re.MULTILINE)
     
-    # Find headings
+    # Headings (markdown and uppercase headings in any language)
     headings = re.findall(r'^#{1,6}\s+(.+)$', text, re.MULTILINE)
-    headings += re.findall(r'^([A-Z][A-Z\s]{5,})$', text, re.MULTILINE)  # ALL CAPS headings (min 5 chars)
+    headings += re.findall(r'^([A-Z\u00C0-\u024F][A-Z\u00C0-\u024F\s]{5,})$', text, re.MULTILINE)
     
-    # Find bold/emphasized text
+    # Emphasized/bold text
     emphasized = re.findall(r'\*\*(.+?)\*\*', text)
     
-    # Build key content
     key_content = []
     
-    # 1. Definitions
-    for term, definition in definitions[:40]:
+    for term, definition in definitions[:50]:
         key_content.append(f"Definition: {term} - {definition}")
     
-    # 2. Structural points
-    for item in (bullet_points + numbered_points)[:40]:
-        if len(item.strip()) > 8:
+    for item in (bullet_points + numbered_points)[:50]:
+        if len(item.strip()) > 6:
             key_content.append(f"Point: {item.strip()}")
             
-    # 3. Headings with context (try to find the paragraph following the heading)
-    for heading in headings[:20]:
+    for heading in headings[:30]:
         key_content.append(f"\nSection: {heading.strip()}\n")
     
-    # 4. Bold items
-    for item in emphasized[:30]:
-        if 5 < len(item) < 100:
+    for item in emphasized[:40]:
+        if 5 < len(item) < 120:
             key_content.append(f"Important: {item}")
             
-    # CHECK: If we extracted very little, the document might be unstructured
-    # Fallback to taking the first 40% and last 20% of the text
     combined_extracted = '\n'.join(key_content)
     
-    if len(combined_extracted) < 1000 and len(text) > 2000:
-        # Document doesn't match our regex well, use a hybrid approach
-        intro_cutoff = int(len(text) * 0.4)
-        outro_start = int(len(text) * 0.8)
+    # If regex extraction failed to find structured text (e.g., narrative document or non-English text),
+    # return the full text so the caller falls back to sliding window chunking (Strategy 3)
+    # instead of blindly slicing characters out of the middle.
+    if len(combined_extracted) < 1000:
+        return text
         
-        fallback_text = text[:intro_cutoff] + "\n\n... [Skipped Middle Section] ...\n\n" + text[outro_start:]
-        return fallback_text[:max_tokens * 4]
-        
-    # If we have extracted content, make sure it doesn't exceed limit
     if estimate_tokens(combined_extracted) > max_tokens:
-        # Smart truncate: keep definitions and structural points first
-        return combined_extracted[:max_tokens * 4]
+        return combined_extracted[:char_limit]
         
-    return combined_extracted if len(combined_extracted) > 200 else text[:max_tokens * 4]
+    return combined_extracted if len(combined_extracted) > 200 else text[:char_limit]
+
 
 def chunk_text(text: str, max_tokens: int = 25000, overlap_percent: float = 0.15) -> List[str]:
     """

@@ -2,16 +2,16 @@ import typer
 import os
 import random
 from dotenv import load_dotenv
-from src.core.llm import get_llm_client
-from src.core.generator import FlashcardGenerator
-from src.core.schemas import DeckConfig
-from src.core.anki import AnkiDeckBuilder
+from backend.core.llm import get_llm_client
+from backend.core.generator import FlashcardGenerator
+from backend.core.schemas import DeckConfig
+from backend.core.anki import AnkiDeckBuilder
 
 load_dotenv()
 
 app = typer.Typer()
 
-from src.core.images import get_image_generator
+from backend.core.images import get_image_generator
 import tempfile
 
 @app.command()
@@ -74,23 +74,26 @@ def generate(
         if not img_gen:
              typer.echo("Warning: Could not initialize Image Generator (check GEMINI_API_KEY). Skipping images.")
         else:
-            temp_dir = tempfile.mkdtemp()
-            for i, card in enumerate(cards):
-                if card.image_prompt:
-                    typer.echo(f"  Generating image for card {i+1}...")
-                    img_filename = f"card_{i}_{random.randint(1000,9999)}.png"
-                    img_path = os.path.join(temp_dir, img_filename)
-                    if img_gen.generate_image(card.image_prompt, img_path):
-                        image_map[i] = img_path
-                    else:
-                        typer.echo(f"  Failed to generate image for card {i+1}")
+            with tempfile.TemporaryDirectory() as temp_dir:
+                for i, card in enumerate(cards):
+                    if card.image_prompt:
+                        typer.echo(f"  Generating image for card {i+1}...")
+                        img_filename = f"card_{i}_{random.randint(1000,9999)}.png"
+                        img_path = os.path.join(temp_dir, img_filename)
+                        if img_gen.generate_image(card.image_prompt, img_path):
+                            image_map[i] = img_path
+                        else:
+                            typer.echo(f"  Failed to generate image for card {i+1}")
+
+                typer.echo("Creating Anki deck...")
+                builder = AnkiDeckBuilder()
+                builder.create_apkg_with_images(cards, deck_name, output, image_map)
+                typer.echo(f"Success! Deck saved to {output}")
+                return
 
     typer.echo("Creating Anki deck...")
     builder = AnkiDeckBuilder()
-    if images:
-        builder.create_apkg_with_images(cards, deck_name, output, image_map)
-    else:
-        builder.create_apkg(cards, deck_name, output)
+    builder.create_apkg(cards, deck_name, output)
     
     typer.echo(f"Success! Deck saved to {output}")
 

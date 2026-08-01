@@ -10,6 +10,8 @@ import asyncio
 import tempfile
 import random
 import uuid
+import functools
+import secrets
 from datetime import datetime
 import time
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -337,9 +339,14 @@ def generate_deck_task(job_id: str, text: str, config_data: dict, provider: str,
         # Re-raise so job queue also knows it failed
         raise e
 
+# Register generation task handler with job queue (decouples circular import)
+job_queue.set_job_handler(generate_deck_task)
+
 
 @app.post("/api/feedback")
+@limiter.limit("5/minute")
 async def submit_feedback(
+    request: Request,
     type: str = Form(...),
     message: str = Form(...),
     email: Optional[str] = Form(None),
@@ -357,24 +364,28 @@ async def submit_feedback(
         try:
             with open("feedback.log", "a") as f:
                 f.write(f"[{time.ctime()}] {log_msg}\n")
-        except: pass
+        except Exception:
+            pass
     
     # 3. Handle file upload if present
     file_url = None
-    if file and settings.GITHUB_TOKEN and settings.GITHUB_REPO:
-        try:
-            # Read file content
-            file_content = await file.read()
-            import base64
-            file_b64 = base64.b64encode(file_content).decode('utf-8')
-            
-            # Upload to GitHub as a gist or issue attachment
-            # For now, we'll include it as base64 in the issue
-            # In production, you might want to upload to a CDN or GitHub releases
-            file_url = f"data:{file.content_type};base64,{file_b64[:100]}..." # Truncated for display
-            logger.info(f"File uploaded: {file.filename} ({len(file_content)} bytes)")
-        except Exception as e:
-            logger.error(f"Failed to process file upload: {e}")
+    if file:
+        MAX_SIZE = 5 * 1024 * 1024  # 5MB limit
+        file_content = await file.read(MAX_SIZE + 1)
+        if len(file_content) > MAX_SIZE:
+            raise HTTPException(status_code=413, detail="File too large (max 5MB)")
+        if settings.GITHUB_TOKEN and settings.GITHUB_REPO:
+            try:
+                import base64
+                file_b64 = base64.b64encode(file_content).decode('utf-8')
+                
+                # Upload to GitHub as a gist or issue attachment
+                # For now, we'll include it as base64 in the issue
+                # In production, you might want to upload to a CDN or GitHub releases
+                file_url = f"data:{file.content_type};base64,{file_b64[:100]}..." # Truncated for display
+                logger.info(f"File uploaded: {file.filename} ({len(file_content)} bytes)")
+            except Exception as e:
+                logger.error(f"Failed to process file upload: {e}")
         
     # 4. GitHub Issue Integration
     if settings.GITHUB_TOKEN and settings.GITHUB_REPO:
@@ -559,13 +570,16 @@ async def submit_job(
                 file_text = ""
                 if suffix == ".pdf":
                      try:
-                         # Use strict=False to be more lenient with malformed PDFs
-                         reader = PdfReader(tmp_path, strict=False)
+                         # Offload synchronous PDF parsing to threadpool
+                         loop = asyncio.get_running_loop()
+                         reader = await loop.run_in_executor(
+                             None, functools.partial(PdfReader, tmp_path, strict=False)
+                         )
                          pages_count = len(reader.pages)
                          total_pages += pages_count
                          
                          for page in reader.pages:
-                             extract = page.extract_text()
+                             extract = await loop.run_in_executor(None, page.extract_text)
                              if extract:
                                 file_text += extract + "\n"
                      except Exception as e:
@@ -578,7 +592,7 @@ async def submit_job(
                             file_text = f.read()
                         # Estimate pages for text files (approx 3000 chars per page)
                         total_pages += (len(file_text) // 3000) + 1
-                    except:
+                    except Exception:
                          # Fallback for docx or other binary formats if added later, 
                          # or encoding issues. For now, strict utf-8 for txt
                          pass
@@ -701,12 +715,17 @@ def download_deck(job_id: str, background_tasks: BackgroundTasks):
 
 # --- ADMIN & WEBHOOK ROUTES ---
 
+def verify_admin_key(x_admin_key: Optional[str]) -> bool:
+    if not x_admin_key or not settings.ADMIN_KEY:
+        return False
+    return secrets.compare_digest(x_admin_key, settings.ADMIN_KEY)
+
 @app.get("/api/admin/stats")
 async def admin_stats(x_admin_key: Optional[str] = Header(None)):
     """
     Admin-only endpoint to view application usage stats.
     """
-    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+    if not verify_admin_key(x_admin_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     
     return await get_admin_stats()
@@ -717,12 +736,13 @@ async def bmc_webhook(request: Request):
     Buy Me A Coffee Webhook for automated sponsor sync.
     """
     # Verify secret if provided
-    signature = request.headers.get("X-Bmc-Signature")
-    # if settings.BUYMEACOFFEE_WEBHOOK_SECRET and signature != settings.BUYMEACOFFEE_WEBHOOK_SECRET:
-    #     raise HTTPException(status_code=403, detail="Invalid signature")
-        
+    signature = request.headers.get("X-Signature") or request.headers.get("X-Bmc-Signature")
+    request_body = await request.body()
     payload = await request.json()
-    success = await handle_bmc_webhook(payload)
+    secret = getattr(settings, "BUYMEACOFFEE_WEBHOOK_SECRET", None) or os.environ.get("BMC_WEBHOOK_SECRET", "")
+    success = await handle_bmc_webhook(payload, request_body=request_body, signature=signature, secret=secret)
+    if not success and secret:
+        raise HTTPException(status_code=403, detail="Invalid webhook signature or payload")
     return {"status": "success" if success else "failed"}
 
 @app.post("/api/webhooks/github")
@@ -738,7 +758,7 @@ async def github_webhook(request: Request):
 
 @app.get("/api/admin/users")
 async def admin_list_users(x_admin_key: Optional[str] = Header(None)):
-    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+    if not verify_admin_key(x_admin_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     
     sb = get_supabase()
@@ -766,7 +786,7 @@ async def admin_list_users(x_admin_key: Optional[str] = Header(None)):
 
 @app.post("/api/admin/users/{user_id}/toggle-sponsor")
 async def admin_toggle_sponsor(user_id: str, tier: Optional[str] = Form(None), x_admin_key: Optional[str] = Header(None)):
-    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+    if not verify_admin_key(x_admin_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     
     sb = get_supabase()
@@ -806,7 +826,7 @@ async def admin_toggle_sponsor(user_id: str, tier: Optional[str] = Form(None), x
 
 @app.post("/api/admin/users/promote-by-email")
 async def admin_promote_by_email(email: str = Form(...), x_admin_key: Optional[str] = Header(None)):
-    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+    if not verify_admin_key(x_admin_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     
     sb = get_supabase()
@@ -833,7 +853,7 @@ async def admin_promote_by_email(email: str = Form(...), x_admin_key: Optional[s
 
 @app.post("/api/admin/users/{user_id}/reset-quota")
 async def admin_reset_quota(user_id: str, x_admin_key: Optional[str] = Header(None)):
-    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+    if not verify_admin_key(x_admin_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     
     sb = get_supabase()
@@ -844,7 +864,7 @@ async def admin_reset_quota(user_id: str, x_admin_key: Optional[str] = Header(No
 @app.post("/api/admin/sync-current")
 async def admin_sync_current(request: Request, x_admin_key: Optional[str] = Header(None)):
     """Syncs the current requesting user into the profiles table."""
-    if not x_admin_key or x_admin_key != settings.ADMIN_KEY:
+    if not verify_admin_key(x_admin_key):
         raise HTTPException(status_code=403, detail="Invalid admin key")
         
     authorization = request.headers.get("Authorization")

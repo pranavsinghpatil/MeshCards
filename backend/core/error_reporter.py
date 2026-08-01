@@ -5,7 +5,9 @@ import os
 import json
 import urllib.request
 import traceback
-from datetime import datetime
+import threading
+import time
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from backend.core.logging import logger
 
@@ -17,6 +19,8 @@ class ErrorReporter:
         self.github_repo = os.getenv("GITHUB_REPO")
         self.enabled = bool(self.github_token and self.github_repo)
         self.env = os.getenv("ENV", "development")
+        self._lock = threading.Lock()
+        self._report_timestamps = []
         
     def report_error(
         self,
@@ -62,9 +66,22 @@ class ErrorReporter:
             if "llm" in context.lower() or "generation" in context.lower():
                 labels.append("llm")
             
-            # Create the issue
-            self._create_github_issue(title, body, labels)
-            logger.info(f"Error reported to GitHub: {title}")
+            # Rate limit check: max 10 issues per hour
+            now_ts = time.time()
+            with self._lock:
+                self._report_timestamps = [ts for ts in self._report_timestamps if now_ts - ts < 3600]
+                if len(self._report_timestamps) >= 10:
+                    logger.warning("Error reporter rate limit reached (max 10 issues per hour). Skipping GitHub report.")
+                    return
+                self._report_timestamps.append(now_ts)
+            
+            # Create the issue asynchronously in a daemon thread so we don't block the event loop
+            threading.Thread(
+                target=self._create_github_issue,
+                args=(title, body, labels),
+                daemon=True
+            ).start()
+            logger.info(f"Error queued for GitHub reporting: {title}")
             
         except Exception as e:
             logger.error(f"Failed to report error to GitHub: {e}")
@@ -80,7 +97,7 @@ class ErrorReporter:
         """Build the GitHub issue body with all relevant information"""
         
         # Get timestamp
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
         
         # Get traceback
         tb = ''.join(traceback.format_exception(type(error), error, error.__traceback__))
@@ -174,7 +191,7 @@ class ErrorReporter:
             }
         )
         
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=3.0) as response:
             if response.status == 201:
                 logger.info("GitHub issue created successfully")
             else:

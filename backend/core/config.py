@@ -1,4 +1,5 @@
 import os
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from typing import List, Optional
 
@@ -25,6 +26,14 @@ class Settings(BaseSettings):
     BUYMEACOFFEE_WEBHOOK_SECRET: Optional[str] = None
     GITHUB_WEBHOOK_SECRET: Optional[str] = None
     ADMIN_KEY: Optional[str] = "admin123" # Secure this in prod!
+
+    @field_validator('ADMIN_KEY')
+    @classmethod
+    def secure_admin_key(cls, v, info):
+        if info.data.get('ENV') == 'production' and v == 'admin123':
+            import secrets
+            return secrets.token_urlsafe(32)
+        return v
     
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True

@@ -1,12 +1,23 @@
-from datetime import datetime
+import hmac
+import hashlib
+from datetime import datetime, timezone
 from backend.core.supabase import get_supabase
 from backend.core.logging import logger
 
-async def handle_bmc_webhook(payload: dict):
+async def handle_bmc_webhook(payload: dict, request_body: bytes = None, signature: str = None, secret: str = None):
     """
-    Process Buy Me A Coffee webhook payload.
+    Process Buy Me A Coffee webhook payload with HMAC signature verification.
     Expected payload includes user email and transaction status.
     """
+    if secret:
+        if not signature or not request_body:
+            logger.warning("BMC Webhook rejected: missing signature or request body")
+            return False
+        expected_sig = hmac.new(secret.encode(), request_body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected_sig, signature):
+            logger.warning("BMC Webhook rejected: invalid HMAC signature")
+            return False
+
     data = payload.get("response", {}).get("data", {})
     email = data.get("supporter_email")
     name = data.get("supporter_name")
@@ -35,7 +46,7 @@ async def handle_bmc_webhook(payload: dict):
             "name": name,
             "coffee_id": str(support_id) if support_id else None,
             "is_active": True,
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
         if user_id:
             sponsor_data["user_id"] = user_id
